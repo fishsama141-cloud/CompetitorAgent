@@ -42,6 +42,7 @@ from backend.schemas import (
     UploadDocumentData,
     UploadDocumentRequest,
     UploadDocumentResponse,
+    VectorSearchRequest,
 )
 
 # ── App factory ──────────────────────────────────────────────
@@ -187,7 +188,7 @@ def upload_document(body: UploadDocumentRequest) -> UploadDocumentResponse:
 
 
 @app.post(f"{API}/knowledge/search", response_model=SearchResponse)
-def semantic_search(body: "VectorSearchRequest") -> SearchResponse:  # noqa: F821
+def semantic_search(body: VectorSearchRequest) -> SearchResponse:
     return SearchResponse(
         data=SearchResponseData(results=_MOCK_SEARCH_RESULTS)
     )
