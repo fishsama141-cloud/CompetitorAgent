@@ -390,9 +390,8 @@ export function KnowledgeView() {
                   <li key={r.chunk_id}>
                     <Sheet>
                       <SheetTrigger asChild>
-                        <button
-                          type="button"
-                          className="group w-full rounded-2xl border border-border/50 bg-muted/15 p-4 text-left transition-all hover:border-sky-200 hover:bg-sky-50/30"
+                        <div
+                          className="group w-full cursor-pointer rounded-2xl border border-border/50 bg-muted/15 p-4 text-left transition-all hover:border-sky-200 hover:bg-sky-50/30"
                           onClick={() => setSelectedChunk(r)}
                         >
                           <div className="flex items-center gap-2">
@@ -425,7 +424,7 @@ export function KnowledgeView() {
                               style={{ width: `${r.similarity_score * 100}%` }}
                             />
                           </div>
-                        </button>
+                        </div>
                       </SheetTrigger>
                       <SheetContent side="right" className="w-[420px] sm:max-w-[480px]">
                         <SheetHeader>
