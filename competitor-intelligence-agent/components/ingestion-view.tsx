@@ -65,12 +65,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 
 const STATUS_META: Record<
   TaskStatus['status'],
@@ -466,35 +461,33 @@ export function IngestionView({ domain }: { domain: string }) {
         </div>
       </section>
 
-      {/* ---- Task Log Table — accordion for progressive disclosure ---- */}
+      {/* ---- Task Log Table — collapsible for progressive disclosure ---- */}
       <Card className="card-shadow overflow-hidden border-0 bg-white transition-shadow hover:card-shadow-hover">
-        <Accordion
-          type="single"
-          collapsible
-          value={showTaskTable ? 'tasks' : ''}
-          onValueChange={(v) => setShowTaskTable(v === 'tasks')}
+        <CardHeader
+          className="cursor-pointer border-b border-border/50 pb-5 hover:bg-muted/20"
+          onClick={() => setShowTaskTable(!showTaskTable)}
         >
-          <AccordionItem value="tasks" className="border-0">
-            <CardHeader className="border-b border-border/50 pb-5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10">
-                    <ScrollText className="size-4 text-primary" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-[15px] tracking-tight">
-                      采集任务与日志
-                    </CardTitle>
-                    <CardDescription className="text-[12.5px]">
-                      实时追踪任务状态、进度与生成的文档数量 · 共 {tasks.length} 条
-                    </CardDescription>
-                  </div>
-                </div>
-                <AccordionTrigger className="hover:no-underline" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10">
+                <ScrollText className="size-4 text-primary" />
               </div>
-            </CardHeader>
-            <AccordionContent>
-              <CardContent className="px-0 pt-0">
+              <div>
+                <CardTitle className="text-[15px] tracking-tight">
+                  采集任务与日志
+                </CardTitle>
+                <CardDescription className="text-[12.5px]">
+                  实时追踪任务状态、进度与生成的文档数量 · 共 {tasks.length} 条
+                </CardDescription>
+              </div>
+            </div>
+            <Button variant="ghost" size="icon-sm" className="shrink-0 text-muted-foreground">
+              {showTaskTable ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+            </Button>
+          </div>
+        </CardHeader>
+        {showTaskTable && (
+          <CardContent className="px-0 pt-0">
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
@@ -614,9 +607,7 @@ export function IngestionView({ domain }: { domain: string }) {
                   </Table>
                 </div>
               </CardContent>
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
+            )}
       </Card>
     </div>
   )

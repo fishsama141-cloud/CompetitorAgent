@@ -4,6 +4,8 @@ import { useState } from 'react'
 import {
   AlertTriangle,
   Check,
+  ChevronDown,
+  ChevronUp,
   Copy,
   Download,
   FileDown,
@@ -47,12 +49,6 @@ import { Separator } from '@/components/ui/separator'
 import { Slider } from '@/components/ui/slider'
 import { Spinner } from '@/components/ui/spinner'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion'
 
 const QUADRANTS = [
   {
@@ -117,6 +113,7 @@ export function SwotView({ domain }: { domain: string }) {
     mockRecommendations.map((r) => r.detail),
   )
   const [latestReportId, setLatestReportId] = useState('')
+  const [showRecs, setShowRecs] = useState(true)
 
   const label =
     targets.length === 0
@@ -306,77 +303,78 @@ export function SwotView({ domain }: { domain: string }) {
         })}
       </section>
 
-      {/* ---- Recommendations — accordion for progressive disclosure ---- */}
+      {/* ---- Recommendations — collapsible for progressive disclosure ---- */}
       <Card className="card-shadow border-0 bg-white transition-shadow hover:card-shadow-hover">
-        <Accordion type="single" defaultValue="recs" collapsible>
-          <AccordionItem value="recs" className="border-0">
-            <CardHeader className="border-b border-border/50 pb-5">
-              <div className="flex flex-wrap items-start gap-4">
-                <div className="flex min-w-0 flex-1 items-center gap-2.5">
-                  <div className="flex size-8 items-center justify-center rounded-lg bg-amber-50 ring-1 ring-amber-200">
-                    <Lightbulb className="size-4 text-amber-500" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-[15px] tracking-tight">
-                      战略建议
-                    </CardTitle>
-                    <CardDescription className="text-[12.5px]">
-                      由 SWOT 矩阵推导的可执行产品策略 · {recommendations.length} 条建议
-                    </CardDescription>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" className="rounded-full" onClick={copyAll}>
-                    {copied ? (
-                      <Check data-icon="inline-start" className="size-3.5" />
-                    ) : (
-                      <Copy data-icon="inline-start" className="size-3.5" />
-                    )}
-                    {copied ? '已复制' : '复制'}
-                  </Button>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm" className="rounded-full">
-                        <Download data-icon="inline-start" className="size-3.5" />
-                        导出
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => toast('正在导出 PDF…')}>
-                        <FileDown className="size-3.5" />
-                        PDF
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => toast('正在导出 Markdown…')}>
-                        <Download className="size-3.5" />
-                        Markdown
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  <AccordionTrigger className="ml-1 hover:no-underline" />
-                </div>
+        <CardHeader
+          className="cursor-pointer border-b border-border/50 pb-5 hover:bg-muted/20"
+          onClick={() => setShowRecs(!showRecs)}
+        >
+          <div className="flex flex-wrap items-start gap-4">
+            <div className="flex min-w-0 flex-1 items-center gap-2.5">
+              <div className="flex size-8 items-center justify-center rounded-lg bg-amber-50 ring-1 ring-amber-200">
+                <Lightbulb className="size-4 text-amber-500" />
               </div>
-            </CardHeader>
-            <AccordionContent>
-              <CardContent className="pt-6">
-                <ul className="flex flex-col gap-3">
-                  {recommendations.map((rec, i) => (
-                    <li
-                      key={rec}
-                      className="flex gap-4 rounded-2xl border border-border/50 bg-muted/15 p-5 transition-all hover:border-primary/20 hover:bg-primary/[0.02]"
-                    >
-                      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 font-mono text-[11px] font-medium text-primary ring-1 ring-primary/20">
-                        {i + 1}
-                      </span>
-                      <p className="text-[13px] leading-relaxed text-foreground/80">
-                        {rec}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
+              <div>
+                <CardTitle className="text-[15px] tracking-tight">
+                  战略建议
+                </CardTitle>
+                <CardDescription className="text-[12.5px]">
+                  由 SWOT 矩阵推导的可执行产品策略 · {recommendations.length} 条建议
+                </CardDescription>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" className="rounded-full" onClick={(e) => { e.stopPropagation(); copyAll(); }}>
+                {copied ? (
+                  <Check data-icon="inline-start" className="size-3.5" />
+                ) : (
+                  <Copy data-icon="inline-start" className="size-3.5" />
+                )}
+                {copied ? '已复制' : '复制'}
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="rounded-full" onClick={(e) => e.stopPropagation()}>
+                    <Download data-icon="inline-start" className="size-3.5" />
+                    导出
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => toast('正在导出 PDF…')}>
+                    <FileDown className="size-3.5" />
+                    PDF
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => toast('正在导出 Markdown…')}>
+                    <Download className="size-3.5" />
+                    Markdown
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button variant="ghost" size="icon-sm" className="shrink-0 text-muted-foreground" onClick={(e) => { e.stopPropagation(); setShowRecs(!showRecs); }}>
+                {showRecs ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        {showRecs && (
+          <CardContent className="pt-6">
+            <ul className="flex flex-col gap-3">
+              {recommendations.map((rec, i) => (
+                <li
+                  key={rec}
+                  className="flex gap-4 rounded-2xl border border-border/50 bg-muted/15 p-5 transition-all hover:border-primary/20 hover:bg-primary/[0.02]"
+                >
+                  <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 font-mono text-[11px] font-medium text-primary ring-1 ring-primary/20">
+                    {i + 1}
+                  </span>
+                  <p className="text-[13px] leading-relaxed text-foreground/80">
+                    {rec}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        )}
       </Card>
     </div>
   )
