@@ -22,17 +22,11 @@ from backend.schemas import (
     CompetitorCreateResponse,
     CompetitorListItem,
     CompetitorListResponse,
-    EvaluationData,
-    EvaluationRequest,
-    EvaluationResponse,
-    SWOTGenerateData,
-    SWOTGenerateRequest,
-    SWOTGenerateResponse,
-    SWOTMatrix,
-    SwotItem,
 )
 from backend.routers.ingestion import router as ingestion_router
 from backend.routers.knowledge import router as knowledge_router
+from backend.routers.swot import router as swot_router
+from backend.routers.evaluation import router as evaluation_router
 
 # ── App factory ──────────────────────────────────────────────
 app = FastAPI(
@@ -49,43 +43,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount real-ingestion & knowledge routers (phased migration)
+# Mount routers
 app.include_router(ingestion_router)
 app.include_router(knowledge_router)
+app.include_router(swot_router)
+app.include_router(evaluation_router)
 
 API = "/api/v1"
-
-# ── Mock data (remaining stubs) ───────────────────────────────
-_MOCK_SWOT = SWOTMatrix(
-    strengths=[
-        SwotItem(
-            point="模型推理能力强，深度搜索体验领先",
-            citation=Citation(chunk_id="chunk_001", source_title="App Store 评论", raw_text_snippet="深度推理模式响应速度极快..."),
-            confidence=0.92,
-        )
-    ],
-    weaknesses=[
-        SwotItem(
-            point="高峰期服务不稳定",
-            citation=Citation(chunk_id="chunk_002", source_title="App Store 评论", raw_text_snippet="经常提示网络连接超时..."),
-            confidence=0.88,
-        )
-    ],
-    opportunities=[
-        SwotItem(
-            point="企业API市场增长空间大",
-            citation=Citation(chunk_id="chunk_003", source_title="Changelog", raw_text_snippet="上线深度 API 开放平台..."),
-            confidence=0.85,
-        )
-    ],
-    threats=[
-        SwotItem(
-            point="大厂价格战加剧竞争",
-            citation=Citation(chunk_id="chunk_004", source_title="行业报告", raw_text_snippet="巨头降价补贴进行用户争夺..."),
-            confidence=0.81,
-        )
-    ],
-)
 
 # ============================================================
 # Health
@@ -140,49 +104,3 @@ def rag_chat(body: ChatRequest) -> ChatResponse:
     )
 
 
-# ============================================================
-# SWOT Agent
-# ============================================================
-
-@app.post(f"{API}/swot/generate", response_model=SWOTGenerateResponse)
-def generate_swot(body: SWOTGenerateRequest) -> SWOTGenerateResponse:
-    return SWOTGenerateResponse(
-        data=SWOTGenerateData(
-            report_id="report_001",
-            task_id="swot_task_001",
-            swot_matrix=_MOCK_SWOT,
-            recommendations=[
-                "加强企业用户服务能力，补齐审计与权限管理",
-                "优化高峰期响应速度，建立弹性扩容机制",
-                "利用开放平台API构建开发者生态",
-            ],
-        )
-    )
-
-
-# ============================================================
-# Evaluation
-# ============================================================
-
-@app.post(f"{API}/evaluation/run", response_model=EvaluationResponse)
-def run_evaluation(body: EvaluationRequest) -> EvaluationResponse:
-    return EvaluationResponse(
-        data=EvaluationData(
-            faithfulness=0.95,
-            citation_accuracy=0.92,
-            completeness=0.90,
-            hallucination_rate=0.03,
-        )
-    )
-
-
-@app.get(f"{API}/evaluation/{{report_id}}", response_model=EvaluationResponse)
-def get_evaluation(report_id: str) -> EvaluationResponse:
-    return EvaluationResponse(
-        data=EvaluationData(
-            faithfulness=0.95,
-            citation_accuracy=0.92,
-            completeness=0.90,
-            hallucination_rate=0.03,
-        )
-    )
