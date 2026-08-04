@@ -75,7 +75,7 @@ export function AppShell({
   }
 
   return (
-    <div className="flex min-h-svh flex-col page-bg">
+    <div className="flex min-h-svh flex-col bg-background">
       {/* ================================================================
           Top Navigation — Dark pill-style (agency-os inspired)
           ================================================================ */}

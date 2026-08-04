@@ -56,68 +56,65 @@
 }
 
 /* ============================================================
-   AgencyOS-Inspired Theme — violet gradients, grain texture,
-   dark header, visible depth
+   Apple-Inspired Monochrome + Sky Blue
    ============================================================ */
 
 :root {
   color-scheme: light;
 
-  --background: #faf9fc;
-  --foreground: #1e1040;
+  --background: #ffffff;
+  --foreground: #1d1d1f;
   --card: #ffffff;
-  --card-foreground: #1e1040;
-  --surface: #f5f3fa;
+  --card-foreground: #1d1d1f;
+  --surface: #f5f5f7;
 
   --popover: #ffffff;
-  --popover-foreground: #1e1040;
+  --popover-foreground: #1d1d1f;
 
-  --primary: #7c3aed;
+  /* Sky blue accent */
+  --primary: #0071e3;
   --primary-foreground: #ffffff;
-
-  --signal: #6d28d9;
+  --signal: #0071e3;
   --signal-foreground: #ffffff;
 
-  --secondary: #f3f0fa;
-  --secondary-foreground: #1e1040;
-  --muted: #f3f0fa;
-  --muted-foreground: #786b94;
-  --accent: #ede9fe;
-  --accent-foreground: #1e1040;
+  --secondary: #f5f5f7;
+  --secondary-foreground: #1d1d1f;
+  --muted: #f5f5f7;
+  --muted-foreground: #86868b;
+  --accent: #f5f5f7;
+  --accent-foreground: #1d1d1f;
 
-  --destructive: #ef4444;
+  --destructive: #ff3b30;
 
-  --border: #e2dcee;
-  --input: #e2dcee;
-  --ring: rgba(124, 58, 237, 0.35);
+  --border: #e5e5e7;
+  --input: #e5e5e7;
+  --ring: rgba(0, 113, 227, 0.3);
 
-  --strength: #7c3aed;
-  --weakness: #ef4444;
-  --opportunity: #10b981;
-  --threat: #f59e0b;
+  --strength: #0071e3;
+  --weakness: #ff3b30;
+  --opportunity: #34c759;
+  --threat: #ff9500;
 
-  --chart-1: #7c3aed;
-  --chart-2: #a78bfa;
-  --chart-3: #10b981;
-  --chart-4: #f59e0b;
-  --chart-5: #ef4444;
+  --chart-1: #0071e3;
+  --chart-2: #5ac8fa;
+  --chart-3: #34c759;
+  --chart-4: #ff9500;
+  --chart-5: #ff3b30;
 
-  --radius: 0.5rem;
+  --radius: 0.75rem;
 
-  --sidebar: #faf9fc;
-  --sidebar-foreground: #1e1040;
-  --sidebar-primary: #7c3aed;
+  --sidebar: #f5f5f7;
+  --sidebar-foreground: #1d1d1f;
+  --sidebar-primary: #0071e3;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #ede9fe;
-  --sidebar-accent-foreground: #1e1040;
-  --sidebar-border: #e2dcee;
-  --sidebar-ring: rgba(124, 58, 237, 0.35);
+  --sidebar-accent: #f5f5f7;
+  --sidebar-accent-foreground: #1d1d1f;
+  --sidebar-border: #e5e5e7;
+  --sidebar-ring: rgba(0, 113, 227, 0.3);
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
+  * { @apply border-border outline-ring/50; }
   body {
     @apply bg-background text-foreground antialiased;
     -webkit-font-smoothing: antialiased;
@@ -125,115 +122,124 @@
   }
 }
 
-/* ---- Page background — visible gradient + grain ---- */
-@utility page-bg {
-  background:
-    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(124, 58, 237, 0.12) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 40% at 0% 80%, rgba(167, 139, 250, 0.08) 0%, transparent 50%),
-    var(--background);
+/* ============================================================
+   Scroll Reveal Animations
+   ============================================================ */
+
+/* Base state — invisible, shifted down */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.reveal.revealed {
+  opacity: 1;
+  transform: translateY(0);
 }
 
-/* ---- Hero section — bold gradient like AgencyOS CTAs ---- */
-@utility section-hero {
-  background: linear-gradient(135deg, #ffffff 0%, #f3f0fa 40%, rgba(124, 58, 237, 0.08) 100%);
-  border: 1px solid rgba(124, 58, 237, 0.12);
+/* Staggered delays for children */
+.reveal-stagger > *:nth-child(1) { transition-delay: 0ms; }
+.reveal-stagger > *:nth-child(2) { transition-delay: 80ms; }
+.reveal-stagger > *:nth-child(3) { transition-delay: 160ms; }
+.reveal-stagger > *:nth-child(4) { transition-delay: 240ms; }
+.reveal-stagger > *:nth-child(5) { transition-delay: 320ms; }
+.reveal-stagger > *:nth-child(6) { transition-delay: 400ms; }
+.reveal-stagger > *:nth-child(7) { transition-delay: 480ms; }
+.reveal-stagger > *:nth-child(8) { transition-delay: 560ms; }
+
+/* Slide from left */
+.reveal-left {
+  opacity: 0;
+  transform: translateX(-32px);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.reveal-left.revealed {
+  opacity: 1;
+  transform: translateX(0);
 }
 
-/* ---- Alternating section — subtle violet wash ---- */
-@utility section-alt {
-  background: linear-gradient(180deg, rgba(124, 58, 237, 0.04) 0%, #ffffff 30%, #ffffff 70%, rgba(167, 139, 250, 0.04) 100%);
+/* Slide from right */
+.reveal-right {
+  opacity: 0;
+  transform: translateX(32px);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.reveal-right.revealed {
+  opacity: 1;
+  transform: translateX(0);
 }
 
-/* ---- Grain texture overlay — visible at 8% ---- */
-@utility grain-bg {
-  position: relative;
-  &::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    opacity: 0.08;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-    background-repeat: repeat;
-    background-size: 256px 256px;
-    pointer-events: none;
-    z-index: 0;
-  }
+/* Scale in */
+.reveal-scale {
+  opacity: 0;
+  transform: scale(0.94);
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.reveal-scale.revealed {
+  opacity: 1;
+  transform: scale(1);
 }
 
-/* ---- Card shadow — visible depth like AgencyOS ---- */
+/* ============================================================
+   Card shadows — Apple-style
+   ============================================================ */
 @utility card-shadow {
-  box-shadow:
-    0 0 0 1px rgba(124, 58, 237, 0.08),
-    0 1px 3px rgba(0, 0, 0, 0.06),
-    0 2px 6px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.04);
 }
-
 @utility card-shadow-hover {
-  box-shadow:
-    0 0 0 1px rgba(124, 58, 237, 0.15),
-    0 4px 20px rgba(0, 0, 0, 0.10),
-    0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 
-/* ---- Gradient accent card — violet border glow ---- */
-@utility gradient-card {
-  position: relative;
-  background: var(--card);
-  box-shadow:
-    0 0 0 1px rgba(124, 58, 237, 0.12),
-    0 2px 8px rgba(124, 58, 237, 0.06);
-  &::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    padding: 1px;
-    background: linear-gradient(135deg, rgba(124, 58, 237, 0.25), rgba(167, 139, 250, 0.10), transparent 50%);
-    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    pointer-events: none;
-  }
-}
-
-/* ---- Dark semi-transparent header ---- */
+/* ============================================================
+   Glass header — dark
+   ============================================================ */
 @utility glass-header {
-  background: rgba(15, 10, 30, 0.90);
+  background: rgba(29, 29, 31, 0.88);
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
 }
 
-/* ---- Stat card — gradient left accent bar ---- */
-@utility stat-accent {
-  position: relative;
-  overflow: hidden;
-  &::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 12px;
-    bottom: 12px;
-    width: 3px;
-    background: linear-gradient(180deg, var(--primary) 0%, rgba(124, 58, 237, 0.2) 100%);
-    border-radius: 0 9999px 9999px 0;
+/* ============================================================
+   Interactive card — subtle lift on hover
+   ============================================================ */
+@utility card-lift {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  &:hover {
+    transform: translateY(-2px);
   }
 }
 
-/* ---- Scrollbar ---- */
+/* ============================================================
+   Button press effect
+   ============================================================ */
+@utility btn-press {
+  transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  &:active {
+    transform: scale(0.96);
+  }
+}
+
+/* ============================================================
+   Section backgrounds
+   ============================================================ */
+@utility section-hero {
+  background: linear-gradient(180deg, #f5f5f7 0%, #ffffff 100%);
+}
+@utility section-alt {
+  background: #f5f5f7;
+}
+
+/* ============================================================
+   Scrollbar
+   ============================================================ */
 @layer utilities {
-  ::-webkit-scrollbar {
-    width: 5px;
-    height: 5px;
-  }
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: #d4cce2;
-    border-radius: 9999px;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: #a094b8;
-  }
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #d2d2d7; border-radius: 9999px; }
+  ::-webkit-scrollbar-thumb:hover { background: #a1a1a6; }
 }
