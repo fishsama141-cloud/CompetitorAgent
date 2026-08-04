@@ -56,14 +56,13 @@
 }
 
 /* ============================================================
-   AgencyOS-Inspired Theme — Violet primary + rich gradients
-   Reference: D:\agency-os-main\agency-os-main
+   AgencyOS-Inspired Theme — violet gradients, grain texture,
+   dark header, visible depth
    ============================================================ */
 
 :root {
   color-scheme: light;
 
-  /* Surfaces — warm white & violet-tinted */
   --background: #faf9fc;
   --foreground: #1e1040;
   --card: #ffffff;
@@ -73,15 +72,12 @@
   --popover: #ffffff;
   --popover-foreground: #1e1040;
 
-  /* Accent — violet (agency-os style) */
   --primary: #7c3aed;
   --primary-foreground: #ffffff;
 
-  /* Signal — deeper violet for indicators */
   --signal: #6d28d9;
   --signal-foreground: #ffffff;
 
-  /* Secondary & muted — warm violet-tinted grays */
   --secondary: #f3f0fa;
   --secondary-foreground: #1e1040;
   --muted: #f3f0fa;
@@ -91,12 +87,10 @@
 
   --destructive: #ef4444;
 
-  /* Borders — slightly more visible */
   --border: #e2dcee;
   --input: #e2dcee;
   --ring: rgba(124, 58, 237, 0.35);
 
-  /* SWOT semantic colors */
   --strength: #7c3aed;
   --weakness: #ef4444;
   --opportunity: #10b981;
@@ -110,7 +104,6 @@
 
   --radius: 0.5rem;
 
-  /* Sidebar tokens — kept for shadcn compatibility only */
   --sidebar: #faf9fc;
   --sidebar-foreground: #1e1040;
   --sidebar-primary: #7c3aed;
@@ -132,23 +125,34 @@
   }
 }
 
-/* ---- Page gradient background — warm violet wash ---- */
+/* ---- Page background — visible gradient + grain ---- */
 @utility page-bg {
   background:
-    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(124, 58, 237, 0.04) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 50% at 100% 100%, rgba(167, 139, 250, 0.03) 0%, transparent 50%),
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(124, 58, 237, 0.12) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 0% 80%, rgba(167, 139, 250, 0.08) 0%, transparent 50%),
     var(--background);
 }
 
-/* ---- CSS grain/noise texture (no image file needed) ---- */
+/* ---- Hero section — bold gradient like AgencyOS CTAs ---- */
+@utility section-hero {
+  background: linear-gradient(135deg, #ffffff 0%, #f3f0fa 40%, rgba(124, 58, 237, 0.08) 100%);
+  border: 1px solid rgba(124, 58, 237, 0.12);
+}
+
+/* ---- Alternating section — subtle violet wash ---- */
+@utility section-alt {
+  background: linear-gradient(180deg, rgba(124, 58, 237, 0.04) 0%, #ffffff 30%, #ffffff 70%, rgba(167, 139, 250, 0.04) 100%);
+}
+
+/* ---- Grain texture overlay — visible at 8% ---- */
 @utility grain-bg {
   position: relative;
   &::before {
     content: '';
     position: absolute;
     inset: 0;
-    opacity: 0.035;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    opacity: 0.08;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
     background-repeat: repeat;
     background-size: 256px 256px;
     pointer-events: none;
@@ -156,17 +160,35 @@
   }
 }
 
-/* ---- Gradient accent card — subtle gradient border effect ---- */
+/* ---- Card shadow — visible depth like AgencyOS ---- */
+@utility card-shadow {
+  box-shadow:
+    0 0 0 1px rgba(124, 58, 237, 0.08),
+    0 1px 3px rgba(0, 0, 0, 0.06),
+    0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+@utility card-shadow-hover {
+  box-shadow:
+    0 0 0 1px rgba(124, 58, 237, 0.15),
+    0 4px 20px rgba(0, 0, 0, 0.10),
+    0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+/* ---- Gradient accent card — violet border glow ---- */
 @utility gradient-card {
   position: relative;
   background: var(--card);
+  box-shadow:
+    0 0 0 1px rgba(124, 58, 237, 0.12),
+    0 2px 8px rgba(124, 58, 237, 0.06);
   &::after {
     content: '';
     position: absolute;
     inset: 0;
     border-radius: inherit;
     padding: 1px;
-    background: linear-gradient(135deg, rgba(124, 58, 237, 0.15), rgba(167, 139, 250, 0.06), transparent 60%);
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.25), rgba(167, 139, 250, 0.10), transparent 50%);
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
@@ -175,29 +197,14 @@
   }
 }
 
-/* ---- Card shadow — subtle but visible depth ---- */
-@utility card-shadow {
-  box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.05),
-    0 1px 3px rgba(0, 0, 0, 0.06),
-    0 1px 2px rgba(0, 0, 0, 0.04);
-}
-
-@utility card-shadow-hover {
-  box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.07),
-    0 4px 16px rgba(0, 0, 0, 0.08),
-    0 2px 6px rgba(0, 0, 0, 0.04);
-}
-
-/* ---- Glass header — dark semi-transparent (agency-os style) ---- */
+/* ---- Dark semi-transparent header ---- */
 @utility glass-header {
-  background: rgba(15, 10, 30, 0.88);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  background: rgba(15, 10, 30, 0.90);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
 }
 
-/* ---- Stat tile accent bar — colored left border ---- */
+/* ---- Stat card — gradient left accent bar ---- */
 @utility stat-accent {
   position: relative;
   overflow: hidden;
@@ -205,15 +212,15 @@
     content: '';
     position: absolute;
     left: 0;
-    top: 0;
-    bottom: 0;
+    top: 12px;
+    bottom: 12px;
     width: 3px;
     background: linear-gradient(180deg, var(--primary) 0%, rgba(124, 58, 237, 0.2) 100%);
     border-radius: 0 9999px 9999px 0;
   }
 }
 
-/* Apple-style scrollbar */
+/* ---- Scrollbar ---- */
 @layer utilities {
   ::-webkit-scrollbar {
     width: 5px;

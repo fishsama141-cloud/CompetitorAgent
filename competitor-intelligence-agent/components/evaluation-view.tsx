@@ -113,7 +113,7 @@ export function EvaluationView() {
   return (
     <div className="flex flex-col gap-8">
       {/* ---- Control Bar ---- */}
-      <Card className="card-shadow overflow-hidden border-0 bg-white">
+      <Card className="card-shadow overflow-hidden bg-white">
         <div className="flex flex-wrap items-center gap-5 p-6">
           <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/20">
             <Gavel className="size-5 text-primary" />
@@ -163,7 +163,7 @@ export function EvaluationView() {
       </section>
 
       {/* ---- History Table ---- */}
-      <Card className="card-shadow overflow-hidden border-0 bg-white transition-shadow hover:card-shadow-hover">
+      <Card className="card-shadow overflow-hidden bg-white transition-shadow hover:card-shadow-hover">
         <CardHeader className="border-b border-border/50 pb-5">
           <CardTitle className="flex items-center gap-2.5 text-[15px] tracking-tight">
             <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10">
@@ -250,7 +250,7 @@ export function EvaluationView() {
       </Card>
 
       {/* ---- Quality Gate ---- */}
-      <Card className="card-shadow border-0 bg-white">
+      <Card className="card-shadow bg-white">
         <CardContent className="flex flex-wrap items-center gap-4 py-5">
           <Sparkles className="size-4 shrink-0 text-primary" />
           <p className="min-w-0 flex-1 text-[12.5px] leading-relaxed text-muted-foreground text-pretty">
@@ -304,7 +304,7 @@ function GaugeCard({
   const c = 2 * Math.PI * r
 
   return (
-    <Card className="card-shadow gap-0 border-0 bg-white py-0 transition-shadow hover:card-shadow-hover">
+    <Card className="card-shadow gap-0 bg-white py-0 transition-shadow hover:card-shadow-hover">
       <div className="flex flex-col gap-4 p-5">
         <div className="flex items-center gap-2.5">
           <div

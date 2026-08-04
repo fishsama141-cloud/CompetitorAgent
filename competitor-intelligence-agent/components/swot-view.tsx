@@ -167,7 +167,7 @@ export function SwotView({ domain }: { domain: string }) {
   return (
     <div className="flex flex-col gap-8">
       {/* ---- Config Card ---- */}
-      <Card className="card-shadow border-0 bg-white transition-shadow hover:card-shadow-hover">
+      <Card className="card-shadow bg-white transition-shadow hover:card-shadow-hover">
         <CardHeader className="border-b border-border/50 pb-5">
           <CardTitle className="flex items-center gap-2.5 text-[15px] tracking-tight">
             <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10">
@@ -255,7 +255,7 @@ export function SwotView({ domain }: { domain: string }) {
             <Card
               key={q.key}
               className={cn(
-                'card-shadow relative gap-0 overflow-hidden border-0 bg-white py-0 transition-all',
+                'card-shadow relative gap-0 overflow-hidden bg-white py-0 transition-all',
                 tone.border,
               )}
             >
@@ -304,7 +304,7 @@ export function SwotView({ domain }: { domain: string }) {
       </section>
 
       {/* ---- Recommendations — collapsible for progressive disclosure ---- */}
-      <Card className="card-shadow border-0 bg-white transition-shadow hover:card-shadow-hover">
+      <Card className="card-shadow bg-white transition-shadow hover:card-shadow-hover">
         <CardHeader
           className="cursor-pointer border-b border-border/50 pb-5 hover:bg-muted/20"
           onClick={() => setShowRecs(!showRecs)}

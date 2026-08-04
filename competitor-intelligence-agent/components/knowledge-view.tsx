@@ -218,7 +218,7 @@ export function KnowledgeView() {
         {/* ===== Left Column ===== */}
         <div className="flex flex-col gap-8">
           {/* Upload */}
-          <Card className="card-shadow border-0 bg-white transition-shadow hover:card-shadow-hover">
+          <Card className="card-shadow bg-white transition-shadow hover:card-shadow-hover">
             <CardHeader className="border-b border-border/50 pb-5">
               <CardTitle className="flex items-center gap-2.5 text-[15px] tracking-tight">
                 <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10">
@@ -301,7 +301,7 @@ export function KnowledgeView() {
           </Card>
 
           {/* Semantic Search */}
-          <Card className="card-shadow border-0 bg-white transition-shadow hover:card-shadow-hover">
+          <Card className="card-shadow bg-white transition-shadow hover:card-shadow-hover">
             <CardHeader className="border-b border-border/50 pb-5">
               <CardTitle className="flex items-center gap-2.5 text-[15px] tracking-tight">
                 <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10">
@@ -467,7 +467,7 @@ export function KnowledgeView() {
         </div>
 
         {/* ===== Right Column — RAG Chat ===== */}
-        <Card className="card-shadow flex flex-col overflow-hidden border-0 bg-white xl:sticky xl:top-[104px] xl:h-[calc(100svh-136px)]">
+        <Card className="card-shadow flex flex-col overflow-hidden bg-white xl:sticky xl:top-[104px] xl:h-[calc(100svh-136px)]">
           <CardHeader className="border-b border-border/50 pb-5">
             <CardTitle className="flex items-center gap-2.5 text-[15px] tracking-tight">
               <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10">
@@ -624,7 +624,7 @@ function MetricCard({
   }[accent]
 
   return (
-    <Card className="card-shadow stat-accent gap-0 border-0 bg-white py-0 transition-shadow hover:card-shadow-hover">
+    <Card className="card-shadow stat-accent gap-0 bg-white py-0 transition-shadow hover:card-shadow-hover">
       <div className="flex flex-col gap-3 p-5">
         <div className="flex items-center gap-2.5">
           <div

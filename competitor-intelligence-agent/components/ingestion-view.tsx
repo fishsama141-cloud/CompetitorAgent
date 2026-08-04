@@ -244,7 +244,7 @@ export function IngestionView({ domain }: { domain: string }) {
       </section>
 
       {/* ---- Crawl Console ---- */}
-      <Card className="gradient-card card-shadow overflow-hidden border-0 bg-white transition-shadow hover:card-shadow-hover">
+      <Card className="gradient-card card-shadow overflow-hidden bg-white transition-shadow hover:card-shadow-hover">
         <CardHeader className="border-b border-border/50 pb-5">
           <CardTitle className="flex items-center gap-2.5 text-[15px] tracking-tight">
             <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10">
@@ -389,7 +389,7 @@ export function IngestionView({ domain }: { domain: string }) {
           {visibleCompetitors.map((c) => (
             <Card
               key={c.competitor_id}
-              className="card-shadow group gap-0 overflow-hidden border-0 bg-white py-0 transition-all hover:card-shadow-hover"
+              className="card-shadow group gap-0 overflow-hidden bg-white py-0 transition-all hover:card-shadow-hover"
             >
               <div className="flex items-start gap-3 p-5">
                 <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 font-semibold text-primary ring-1 ring-primary/20">
@@ -462,7 +462,7 @@ export function IngestionView({ domain }: { domain: string }) {
       </section>
 
       {/* ---- Task Log Table — collapsible for progressive disclosure ---- */}
-      <Card className="card-shadow overflow-hidden border-0 bg-white transition-shadow hover:card-shadow-hover">
+      <Card className="card-shadow overflow-hidden bg-white transition-shadow hover:card-shadow-hover">
         <CardHeader
           className="cursor-pointer border-b border-border/50 pb-5 hover:bg-muted/20"
           onClick={() => setShowTaskTable(!showTaskTable)}
@@ -634,7 +634,7 @@ function StatTile({
   }[accent]
 
   return (
-    <Card className="card-shadow stat-accent gap-0 border-0 bg-white py-0 transition-shadow hover:card-shadow-hover">
+    <Card className="card-shadow stat-accent gap-0 bg-white py-0 transition-shadow hover:card-shadow-hover">
       <div className="flex items-start gap-3 p-5">
         <div
           className={cn(
