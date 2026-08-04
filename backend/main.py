@@ -1,7 +1,7 @@
 """Competitor Intelligence Agent — FastAPI Backend.
 
-Strictly aligned with api_contract.json.  All routes return mock data;
-real logic (ChromaDB, LLM, crawler) will be wired in later phases.
+Strictly aligned with api_contract.json.
+Real ingestion & knowledge routes live in routers/; remaining stubs inlined.
 """
 
 from __future__ import annotations
@@ -13,7 +13,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.schemas import (
-    ApiResponse,
     ChatRequest,
     ChatResponse,
     ChatResponseData,
@@ -23,27 +22,17 @@ from backend.schemas import (
     CompetitorCreateResponse,
     CompetitorListItem,
     CompetitorListResponse,
-    CrawlRequest,
-    CrawlResponse,
-    CrawlResponseData,
     EvaluationData,
     EvaluationRequest,
     EvaluationResponse,
-    SearchResponse,
-    SearchResponseData,
-    SearchResultItem,
     SWOTGenerateData,
     SWOTGenerateRequest,
     SWOTGenerateResponse,
     SWOTMatrix,
     SwotItem,
-    TaskStatusData,
-    TaskStatusResponse,
-    UploadDocumentData,
-    UploadDocumentRequest,
-    UploadDocumentResponse,
-    VectorSearchRequest,
 )
+from backend.routers.ingestion import router as ingestion_router
+from backend.routers.knowledge import router as knowledge_router
 
 # ── App factory ──────────────────────────────────────────────
 app = FastAPI(
@@ -60,24 +49,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Mount real-ingestion & knowledge routers (phased migration)
+app.include_router(ingestion_router)
+app.include_router(knowledge_router)
+
 API = "/api/v1"
 
-# ── Mock data ────────────────────────────────────────────────
-_MOCK_SEARCH_RESULTS = [
-    SearchResultItem(
-        chunk_id="chunk_001",
-        content="DeepSeek新增深度搜索能力，支持多轮对话与代码解释器。",
-        source="官方更新日志",
-        similarity_score=0.93,
-    ),
-    SearchResultItem(
-        chunk_id="chunk_002",
-        content="豆包上线了语音克隆功能，用户可自定义AI声音。",
-        source="App Store 评论",
-        similarity_score=0.88,
-    ),
-]
-
+# ── Mock data (remaining stubs) ───────────────────────────────
 _MOCK_SWOT = SWOTMatrix(
     strengths=[
         SwotItem(
@@ -142,55 +120,6 @@ def list_competitors() -> CompetitorListResponse:
             CompetitorListItem(competitor_id="cmp_003", name="Kimi", category="AI Assistant", latest_update=date(2026, 8, 2), document_count=55),
             CompetitorListItem(competitor_id="cmp_004", name="Perplexity", category="Search", latest_update=date(2026, 7, 15), document_count=38),
         ]
-    )
-
-
-# ============================================================
-# Data Ingestion
-# ============================================================
-
-@app.post(f"{API}/data/crawl", response_model=CrawlResponse)
-def trigger_crawl(body: CrawlRequest) -> CrawlResponse:
-    return CrawlResponse(
-        data=CrawlResponseData(
-            task_id="crawl_001",
-            crawl_status="processing",
-            estimated_time="30s",
-        )
-    )
-
-
-@app.get(f"{API}/data/task/{{task_id}}", response_model=TaskStatusResponse)
-def get_task_status(task_id: str) -> TaskStatusResponse:
-    return TaskStatusResponse(
-        data=TaskStatusData(
-            task_id=task_id,
-            status="completed",
-            progress_percentage=100,
-            documents_created=35,
-            error_message=None,
-        )
-    )
-
-
-# ============================================================
-# Knowledge Base
-# ============================================================
-
-@app.post(f"{API}/knowledge/documents", response_model=UploadDocumentResponse)
-def upload_document(body: UploadDocumentRequest) -> UploadDocumentResponse:
-    return UploadDocumentResponse(
-        data=UploadDocumentData(
-            document_id="doc_001",
-            status="indexed",
-        )
-    )
-
-
-@app.post(f"{API}/knowledge/search", response_model=SearchResponse)
-def semantic_search(body: VectorSearchRequest) -> SearchResponse:
-    return SearchResponse(
-        data=SearchResponseData(results=_MOCK_SEARCH_RESULTS)
     )
 
 
