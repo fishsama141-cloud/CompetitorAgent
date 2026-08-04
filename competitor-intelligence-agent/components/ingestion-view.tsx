@@ -2,11 +2,12 @@
 
 import { useMemo, useState } from 'react'
 import {
-  CalendarClock, CheckCircle2, FileStack, Globe, Link2,
-  Loader2, MoreHorizontal, Play, RefreshCw, ScrollText,
-  Target, XCircle, ChevronDown, ChevronUp, ArrowRight,
+  CheckCircle2, FileStack, Globe,
+  Loader2, Play, RefreshCw, XCircle, Plus,
+  ChevronRight, History, Settings2, Activity,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import {
   competitors as seedCompetitors, crawlTasks as seedTasks,
@@ -16,248 +17,483 @@ import { startCrawl as startCrawlApi } from '@/lib/services/ingestion'
 import type { CrawlResponse } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
-import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
-import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group'
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Select, SelectContent, SelectGroup, SelectItem,
+  SelectTrigger, SelectValue,
+} from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
-import { Spinner } from '@/components/ui/spinner'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+  DialogDescription, DialogFooter,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { useReveal } from '@/hooks/use-reveal'
 
+/* ─────────────────────────────────────────────
+   Status badge config
+   ───────────────────────────────────────────── */
 const STATUS_META: Record<TaskStatus['status'], { label: string; className: string; icon: React.ComponentType<{ className?: string }> }> = {
-  completed: { label: 'Completed', className: 'border-emerald-200 bg-emerald-50 text-emerald-700', icon: CheckCircle2 },
-  processing: { label: 'Processing', className: 'border-sky-200 bg-sky-50 text-sky-700', icon: Loader2 },
-  failed: { label: 'Failed', className: 'border-red-200 bg-red-50 text-red-700', icon: XCircle },
+  completed: { label: '已完成', className: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: CheckCircle2 },
+  processing: { label: '采集中', className: 'bg-sky-50 text-sky-700 border-sky-200', icon: Loader2 },
+  failed: { label: '失败', className: 'bg-red-50 text-red-600 border-red-200', icon: XCircle },
 }
 
-function SectionHeader({ icon: Icon, title, description }: { icon: React.ComponentType<{ className?: string }>; title: string; description?: string }) {
-  return (
-    <div className="flex items-center gap-2.5">
-      <div className="flex size-7 items-center justify-center rounded-lg bg-primary/10">
-        <Icon className="size-3.5 text-primary" />
-      </div>
-      <div>
-        <h2 className="text-sm font-semibold tracking-tight">{title}</h2>
-        {description && <p className="text-[11px] text-muted-foreground">{description}</p>}
-      </div>
-    </div>
-  )
-}
-
+/* ─────────────────────────────────────────────
+   Main View
+   ───────────────────────────────────────────── */
 export function IngestionView({ domain }: { domain: string }) {
+  const [addOpen, setAddOpen] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [newUrl, setNewUrl] = useState('')
+  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [tasks, setTasks] = useState<TaskStatus[]>(seedTasks)
-  const [target, setTarget] = useState('cmp_001')
-  const [url, setUrl] = useState('https://deepseek.com/news')
-  const [sourceType, setSourceType] = useState<TaskStatus['source_type']>('changelog')
   const [crawling, setCrawling] = useState(false)
   const [progress, setProgress] = useState(0)
-  const [showTaskTable, setShowTaskTable] = useState(true)
   const heroRef = useReveal()
-  const statsRef = useReveal()
-  const consoleRef = useReveal()
-  const cardsRef = useReveal()
-  const logRef = useReveal()
 
   const visibleCompetitors = useMemo(
     () => seedCompetitors.filter((c) => c.category === domain || domain === 'AI Assistant'),
     [domain],
   )
-  const stats = useMemo(() => {
-    const docs = seedCompetitors.reduce((s, c) => s + c.document_count, 0)
-    return { targets: seedCompetitors.length, docs, running: tasks.filter((t) => t.status === 'processing').length, failed: tasks.filter((t) => t.status === 'failed').length }
-  }, [tasks])
 
-  async function startCrawl() {
+  const selected = useMemo(
+    () => seedCompetitors.find((c) => c.competitor_id === selectedId),
+    [selectedId],
+  )
+
+  const selectedTasks = useMemo(
+    () => tasks.filter((t) => t.competitor === selected?.name),
+    [tasks, selected],
+  )
+
+  function handleAdd() {
+    if (!newName.trim()) return
+    toast.success(`竞品「${newName.trim()}」已加入监控列表`)
+    setNewName(''); setNewUrl(''); setAddOpen(false)
+  }
+
+  async function handleCrawl(targetId: string) {
     if (crawling) return
-    const competitor = seedCompetitors.find((c) => c.competitor_id === target)?.name ?? 'Unknown'
+    const competitor = seedCompetitors.find((c) => c.competitor_id === targetId)?.name ?? 'Unknown'
     setCrawling(true); setProgress(6)
     const taskId = `crawl_${String(tasks.length + 1).padStart(3, '0')}`
     try {
-      const result: CrawlResponse = await startCrawlApi({ competitor_id: target, url, source_type: sourceType })
-      setTasks((prev) => [{ task_id: result.task_id, competitor, source_url: url, source_type: sourceType, status: result.crawl_status === 'failed' ? 'failed' : result.crawl_status === 'completed' ? 'completed' : 'processing', progress_percentage: 6, documents_created: 0, error_message: null }, ...prev])
-      toast.success(`采集任务已提交 · ${competitor}`, { description: `${result.task_id}` })
-      setCrawling(false); setProgress(100); return
-    } catch { /* mock fallback */ }
-    setTasks((prev) => [{ task_id: taskId, competitor, source_url: url, source_type: sourceType, status: 'processing', progress_percentage: 6, documents_created: 0, error_message: null }, ...prev])
+      const result: CrawlResponse = await startCrawlApi({ competitor_id: targetId, url: `https://${competitor.toLowerCase()}.com/news`, source_type: 'changelog' })
+      setTasks((prev) => [{ task_id: result.task_id, competitor, source_url: `https://${competitor.toLowerCase()}.com/news`, source_type: 'changelog', status: 'processing', progress_percentage: 6, documents_created: 0, error_message: null }, ...prev])
+      toast.success(`采集已启动 · ${competitor}`)
+    } catch {
+      setTasks((prev) => [{ task_id: taskId, competitor, source_url: `https://${competitor.toLowerCase()}.com/news`, source_type: 'changelog', status: 'processing', progress_percentage: 6, documents_created: 0, error_message: null }, ...prev])
+    }
     const timer = setInterval(() => {
       setProgress((p) => {
-        const next = Math.min(100, p + Math.round(6 + Math.random() * 12))
-        setTasks((prev) => prev.map((t) => t.task_id === taskId ? { ...t, progress_percentage: next, documents_created: Math.round((next / 100) * 31), status: next >= 100 ? 'completed' : 'processing' } : t))
+        const next = Math.min(100, p + Math.round(8 + Math.random() * 14))
+        setTasks((prev) => prev.map((t) => t.task_id === (taskId) ? { ...t, progress_percentage: next, documents_created: Math.round((next / 100) * 31), status: next >= 100 ? 'completed' : 'processing' } : t))
         if (next >= 100) { clearInterval(timer); setCrawling(false); toast.success(`采集完成 · ${competitor}`) }
         return next
       })
-    }, 520)
-  }
-
-  function retry(taskId: string) {
-    setTasks((prev) => prev.map((t) => t.task_id === taskId ? { ...t, status: 'processing', progress_percentage: 12 } : t))
-    toast('已重新排队')
+    }, 400)
   }
 
   return (
     <div className="flex flex-col">
-      {/* HERO */}
-      <section ref={heroRef} className="reveal relative overflow-hidden rounded-3xl section-hero px-6 py-12 lg:px-12 lg:py-16">
-        <div className="relative z-10 flex flex-wrap items-start justify-between gap-6">
-          <div className="flex flex-col gap-3">
-            <span className="font-mono text-[10px] font-medium tracking-[0.2em] text-primary/70 uppercase">Data Pipeline</span>
-            <h1 className="text-[28px] font-bold leading-tight tracking-tight lg:text-5xl">数据采集</h1>
-            <p className="max-w-lg text-[14px] leading-relaxed text-muted-foreground">
-              自动化竞品数据采集与向量化入库。选择目标、配置来源，一键将非结构化数据转化为可检索的知识片段。
-            </p>
+      {/* ================================================================
+          HERO — Apple-style: massive type, single sentence, one CTA
+          ================================================================ */}
+      <motion.section
+        ref={heroRef}
+        initial={{ opacity: 0, y: 40 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+        className="flex flex-col items-start gap-8 py-16 lg:py-24"
+      >
+        <span className="font-mono text-[11px] font-medium tracking-[0.2em] text-primary/60 uppercase">
+          Data Pipeline
+        </span>
+        <h1 className="max-w-2xl text-[40px] font-bold leading-[1.05] tracking-[-0.02em] lg:text-[56px]">
+          竞品数据采集，
+          <br />
+          <span className="text-primary">一键向量化入库。</span>
+        </h1>
+        <p className="max-w-lg text-[17px] leading-relaxed text-muted-foreground">
+          选择目标竞品，配置采集来源，自动将非结构化数据转化为可检索的知识片段。
+        </p>
+        <Button
+          size="lg"
+          className="btn-press mt-2 rounded-full px-8 text-[15px]"
+          onClick={() => setAddOpen(true)}
+        >
+          <Plus className="size-4" />
+          添加新竞品
+        </Button>
+      </motion.section>
+
+      {/* ================================================================
+          COMPETITOR GRID — cards as the primary UI element
+          ================================================================ */}
+      <section className="py-8 lg:py-12">
+        <div className="mb-8 flex items-end justify-between">
+          <div>
+            <span className="font-mono text-[10px] font-medium tracking-[0.2em] text-muted-foreground/60 uppercase">
+              Monitored Targets
+            </span>
+            <h2 className="mt-1 text-2xl font-bold tracking-[-0.01em]">监控目标</h2>
           </div>
-          <Button onClick={startCrawl} disabled={crawling} size="lg" className="btn-press rounded-full">
-            {crawling ? <Spinner data-icon="inline-start" /> : <Play data-icon="inline-start" />}
-            {crawling ? '采集中…' : '开始采集'}
-          </Button>
+          <span className="font-mono text-[11px] text-muted-foreground">
+            {visibleCompetitors.length} competitors · {domain}
+          </span>
         </div>
-      </section>
 
-      {/* STATS */}
-      <section ref={statsRef} className="reveal-stagger mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatTile label="监控目标" value={String(stats.targets)} caption="活跃竞品" icon={Target} />
-        <StatTile label="文档总量" value={stats.docs.toLocaleString('en-US')} caption="已入库片段" icon={FileStack} />
-        <StatTile label="进行中" value={String(stats.running)} caption="采集任务" icon={Loader2} accent="signal" />
-        <StatTile label="失败" value={String(stats.failed)} caption="需关注" icon={XCircle} accent="weakness" />
-      </section>
-
-      {/* CONSOLE */}
-      <section ref={consoleRef} className="reveal mt-8">
-        <div className="mb-4"><SectionHeader icon={Globe} title="采集控制台" description="配置来源并启动异步爬取任务" /></div>
-        <Card className="card-shadow card-lift bg-white">
-          <CardContent className="pt-6">
-            <FieldGroup className="gap-5">
-              <div className="grid gap-5 lg:grid-cols-[220px_1fr_220px]">
-                <Field>
-                  <FieldLabel htmlFor="crawl-target" className="text-[12px]">竞品目标</FieldLabel>
-                  <Select value={target} onValueChange={(v) => setTarget(v as string)}>
-                    <SelectTrigger id="crawl-target" className="w-full">
-                      <SelectValue>{(value) => seedCompetitors.find((c) => c.competitor_id === value)?.name ?? '选择'}</SelectValue>
-                    </SelectTrigger>
-                    <SelectContent><SelectGroup>{seedCompetitors.map((c) => (<SelectItem key={c.competitor_id} value={c.competitor_id}>{c.name}</SelectItem>))}</SelectGroup></SelectContent>
-                  </Select>
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="crawl-url" className="text-[12px]">来源地址</FieldLabel>
-                  <InputGroup>
-                    <InputGroupAddon><Link2 className="size-3.5" /></InputGroupAddon>
-                    <InputGroupInput id="crawl-url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://..." className="font-mono text-[12px]" />
-                  </InputGroup>
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="crawl-source" className="text-[12px]">来源类型</FieldLabel>
-                  <Select value={sourceType} onValueChange={(v) => setSourceType(v as TaskStatus['source_type'])}>
-                    <SelectTrigger id="crawl-source" className="w-full"><SelectValue /></SelectTrigger>
-                    <SelectContent><SelectGroup>{sourceTypes.map((s) => (<SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>))}</SelectGroup></SelectContent>
-                  </Select>
-                </Field>
-              </div>
-              {crawling && (
-                <div className="rounded-2xl border border-sky-200 bg-sky-50/60 p-5">
-                  <div className="flex items-center justify-between text-[12px]">
-                    <span className="flex items-center gap-2 font-medium text-sky-700"><Loader2 className="size-3.5 animate-spin" />正在解析页面并生成向量嵌入</span>
-                    <span className="font-mono text-sky-600">{progress}% · 预计剩余 {Math.max(1, Math.round((100 - progress) / 12))}s</span>
-                  </div>
-                  <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-sky-200/50">
-                    <div className="h-full rounded-full bg-primary transition-[width] duration-500 ease-out" style={{ width: `${progress}%` }} />
-                  </div>
-                </div>
-              )}
-            </FieldGroup>
-          </CardContent>
-        </Card>
-      </section>
-
-      {/* COMPETITORS */}
-      <section ref={cardsRef} className="reveal mt-8">
-        <div className="mb-4 flex items-end justify-between">
-          <SectionHeader icon={Target} title="监控目标" description={`${domain} · ${visibleCompetitors.length} 个目标`} />
-          <Button variant="ghost" size="sm" className="text-[11px] text-muted-foreground">查看全部<ArrowRight data-icon="inline-end" /></Button>
-        </div>
-        <div className="reveal-stagger grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {visibleCompetitors.map((c) => (
-            <Card key={c.competitor_id} className="card-shadow card-lift reveal group gap-0 bg-white py-0">
-              <div className="flex items-start gap-3 p-5">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 font-semibold text-primary">{c.name.slice(0, 1)}</div>
-                <div className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate text-sm font-semibold tracking-tight">{c.name}</span>
-                  <span className="truncate font-mono text-[10px] text-muted-foreground">{c.competitor_id}</span>
-                </div>
-                <Tooltip>
-                  <TooltipTrigger render={<Button variant="ghost" size="icon-sm" className="opacity-0 transition-opacity group-hover:opacity-100"><MoreHorizontal className="size-4" /></Button>} />
-                  <TooltipContent>编辑采集配置</TooltipContent>
-                </Tooltip>
-              </div>
-              <Separator />
-              <div className="flex flex-col gap-3 p-5">
-                <Badge variant="secondary" className="w-fit border-0 bg-muted text-[10px] text-muted-foreground">{c.category}</Badge>
-                <div className="flex items-center justify-between text-[11px]"><span className="flex items-center gap-1.5 text-muted-foreground"><CalendarClock className="size-3.5" />最近更新</span><span className="font-mono">{c.latest_update}</span></div>
-                <div className="flex items-center justify-between text-[11px]"><span className="flex items-center gap-1.5 text-muted-foreground"><FileStack className="size-3.5" />文档数量</span><span className="font-mono">{c.document_count}</span></div>
-                <div className="mt-1 h-1 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary/60" style={{ width: `${Math.min(100, (c.document_count / 120) * 100)}%` }} /></div>
-              </div>
-            </Card>
+        <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
+          {visibleCompetitors.map((c, i) => (
+            <CompetitorCard
+              key={c.competitor_id}
+              competitor={c}
+              index={i}
+              isSelected={selectedId === c.competitor_id}
+              onSelect={() => setSelectedId(selectedId === c.competitor_id ? null : c.competitor_id)}
+              onCrawl={(e) => { e.stopPropagation(); handleCrawl(c.competitor_id) }}
+              crawling={crawling}
+            />
           ))}
         </div>
       </section>
 
-      {/* TASK LOG */}
-      <section ref={logRef} className="reveal mt-8">
-        <Card className="card-shadow bg-white">
-          <CardHeader className="cursor-pointer border-b border-border/50 pb-5 hover:bg-muted/30 transition-colors" onClick={() => setShowTaskTable(!showTaskTable)}>
-            <div className="flex items-center justify-between">
-              <SectionHeader icon={ScrollText} title="采集任务与日志" description={`实时追踪 · ${tasks.length} 条`} />
-              <Button variant="ghost" size="icon-sm" className="shrink-0 text-muted-foreground">{showTaskTable ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}</Button>
+      {/* ================================================================
+          SLIDE-OVER SHEET — all functional details in a drawer
+          ================================================================ */}
+      <AnimatePresence>
+        {selectedId && selected && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25 }}
+              className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
+              onClick={() => setSelectedId(null)}
+            />
+            {/* Sheet */}
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              className="fixed right-0 top-0 z-50 flex h-full w-full max-w-lg flex-col border-l border-border bg-white shadow-2xl"
+            >
+              <SheetContent
+                competitor={selected}
+                tasks={selectedTasks}
+                onClose={() => setSelectedId(null)}
+                onCrawl={() => handleCrawl(selected.competitor_id!)}
+                crawling={crawling}
+                progress={progress}
+              />
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ================================================================
+          ADD DIALOG
+          ================================================================ */}
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>添加竞品</DialogTitle>
+            <DialogDescription>
+              输入竞品名称与官方地址，加入监控列表并启动数据采集。
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 pt-2">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="add-name" className="text-[12px]">竞品名称</Label>
+              <Input
+                id="add-name"
+                placeholder="例如：DeepSeek"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing) handleAdd() }}
+              />
             </div>
-          </CardHeader>
-          {showTaskTable && (
-            <CardContent className="px-0 pt-0">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-border/40 hover:bg-transparent">
-                      <TableHead className="pl-6 font-mono text-[10px] tracking-wider text-muted-foreground uppercase">Task ID</TableHead>
-                      <TableHead className="font-mono text-[10px] tracking-wider text-muted-foreground uppercase">Competitor</TableHead>
-                      <TableHead className="font-mono text-[10px] tracking-wider text-muted-foreground uppercase">Source</TableHead>
-                      <TableHead className="font-mono text-[10px] tracking-wider text-muted-foreground uppercase">Status</TableHead>
-                      <TableHead className="w-[168px] font-mono text-[10px] tracking-wider text-muted-foreground uppercase">Progress</TableHead>
-                      <TableHead className="text-right font-mono text-[10px] tracking-wider text-muted-foreground uppercase">Docs</TableHead>
-                      <TableHead className="pr-6 text-right font-mono text-[10px] tracking-wider text-muted-foreground uppercase">Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {tasks.map((t) => {
-                      const meta = STATUS_META[t.status]; const Icon = meta.icon
-                      return (
-                        <TableRow key={t.task_id} className="border-border/40 transition-colors hover:bg-muted/20">
-                          <TableCell className="pl-6 font-mono text-[12px]">{t.task_id}</TableCell>
-                          <TableCell className="text-[13px] font-medium">{t.competitor}</TableCell>
-                          <TableCell className="max-w-[260px]"><div className="flex flex-col gap-0.5"><span className="truncate font-mono text-[11px] text-muted-foreground">{t.source_url}</span><span className="font-mono text-[10px] text-primary/70">{t.source_type}</span></div></TableCell>
-                          <TableCell><Badge variant="secondary" className={cn('gap-1.5 border-0 text-[10px] font-medium', meta.className)}><Icon className={cn('size-3', t.status === 'processing' && 'animate-spin')} />{meta.label}</Badge></TableCell>
-                          <TableCell><div className="flex items-center gap-2"><div className="h-1 flex-1 overflow-hidden rounded-full bg-muted"><div className={cn('h-full rounded-full transition-[width] duration-500', t.status === 'failed' ? 'bg-red-400' : t.status === 'completed' ? 'bg-emerald-400' : 'bg-primary')} style={{ width: `${t.progress_percentage}%` }} /></div><span className="w-9 text-right font-mono text-[11px] text-muted-foreground">{t.progress_percentage}%</span></div></TableCell>
-                          <TableCell className="text-right font-mono text-[12px]">{t.documents_created}</TableCell>
-                          <TableCell className="pr-6 text-right">{t.status === 'failed' ? <Button variant="outline" size="sm" className="h-7 rounded-full text-[11px]" onClick={() => retry(t.task_id)}><RefreshCw data-icon="inline-start" />重试</Button> : <Button variant="ghost" size="sm" className="h-7 text-[11px] text-muted-foreground" onClick={() => toast(`日志 · ${t.task_id}`, { description: `${t.source_type} → ${t.documents_created} docs` })}>查看日志</Button>}</TableCell>
-                        </TableRow>
-                      )
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          )}
-        </Card>
-      </section>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="add-url" className="text-[12px]">官方地址 <span className="text-muted-foreground">(选填)</span></Label>
+              <Input id="add-url" placeholder="https://..." value={newUrl} onChange={(e) => setNewUrl(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddOpen(false)}>取消</Button>
+            <Button onClick={handleAdd} disabled={!newName.trim()}>确认添加</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
 
-function StatTile({ label, value, caption, icon: Icon, accent = 'primary' }: { label: string; value: string; caption: string; icon: React.ComponentType<{ className?: string }>; accent?: 'primary' | 'signal' | 'weakness' }) {
-  const accentClass = { primary: 'text-primary bg-primary/10', signal: 'text-sky-600 bg-sky-50', weakness: 'text-red-500 bg-red-50' }[accent]
+/* ─────────────────────────────────────────────
+   Competitor Card — Apple-style
+   ───────────────────────────────────────────── */
+function CompetitorCard({
+  competitor,
+  index,
+  isSelected,
+  onSelect,
+  onCrawl,
+  crawling,
+}: {
+  competitor: (typeof seedCompetitors)[0]
+  index: number
+  isSelected: boolean
+  onSelect: () => void
+  onCrawl: (e: React.MouseEvent) => void
+  crawling: boolean
+}) {
+  const [hovered, setHovered] = useState(false)
+
   return (
-    <div className="reveal card-lift flex items-center gap-4 rounded-2xl bg-white p-5 ring-1 ring-black/5 transition-all hover:ring-black/10">
-      <div className={cn('flex size-10 shrink-0 items-center justify-center rounded-xl', accentClass)}><Icon className="size-5" /></div>
-      <div className="flex min-w-0 flex-col"><span className="text-[11px] text-muted-foreground">{label}</span><span className="text-[26px] leading-tight font-bold tracking-tight tabular-nums">{value}</span><span className="truncate font-mono text-[10px] text-muted-foreground">{caption}</span></div>
-    </div>
+    <motion.div
+      initial={{ opacity: 0, y: 24 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, delay: index * 0.08, ease: [0.16, 1, 0.3, 1] }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={onSelect}
+      className={cn(
+        'group relative cursor-pointer overflow-hidden rounded-3xl bg-white p-6 transition-shadow duration-500',
+        'ring-1 ring-black/5 hover:ring-black/10',
+        isSelected && 'ring-primary/40 ring-2',
+      )}
+    >
+      {/* Hover lift */}
+      <motion.div
+        animate={{ y: hovered ? -4 : 0 }}
+        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+        className="flex flex-col gap-5"
+      >
+        {/* Top: avatar + name */}
+        <div className="flex items-start justify-between">
+          <motion.div
+            animate={{ scale: hovered ? 1.05 : 1 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 400 }}
+            className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-lg font-bold text-primary"
+          >
+            {competitor.name.slice(0, 1)}
+          </motion.div>
+          <motion.div
+            animate={{ opacity: hovered ? 1 : 0, x: hovered ? 0 : 8 }}
+            transition={{ duration: 0.2 }}
+          >
+            <ChevronRight className="size-4 text-muted-foreground/40" />
+          </motion.div>
+        </div>
+
+        {/* Name + ID */}
+        <div>
+          <h3 className="text-[17px] font-semibold tracking-[-0.01em]">{competitor.name}</h3>
+          <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">{competitor.competitor_id}</p>
+        </div>
+
+        {/* Meta */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="secondary" className="border-0 bg-muted text-[10px] font-normal text-muted-foreground">
+            {competitor.category}
+          </Badge>
+          <span className="font-mono text-[10px] text-muted-foreground/60">
+            {competitor.document_count} docs
+          </span>
+          <span className="font-mono text-[10px] text-muted-foreground/60">
+            · {competitor.latest_update}
+          </span>
+        </div>
+
+        {/* Hover action bar */}
+        <AnimatePresence>
+          {hovered && (
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              transition={{ duration: 0.2 }}
+              className="flex gap-2"
+            >
+              <Button
+                variant="secondary"
+                size="sm"
+                className="btn-press h-8 rounded-full text-[12px]"
+                onClick={onCrawl}
+                disabled={crawling}
+              >
+                {crawling ? <Loader2 className="size-3 animate-spin" /> : <Play className="size-3" />}
+                立即采集
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 rounded-full text-[12px] text-muted-foreground"
+                onClick={(e) => { e.stopPropagation(); onSelect() }}
+              >
+                <History className="size-3" />
+                查看日志
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+    </motion.div>
+  )
+}
+
+/* ─────────────────────────────────────────────
+   Sheet Content — crawl config + logs inside drawer
+   ───────────────────────────────────────────── */
+function SheetContent({
+  competitor,
+  tasks,
+  onClose,
+  onCrawl,
+  crawling,
+  progress,
+}: {
+  competitor: (typeof seedCompetitors)[0]
+  tasks: TaskStatus[]
+  onClose: () => void
+  onCrawl: () => void
+  crawling: boolean
+  progress: number
+}) {
+  return (
+    <>
+      {/* Sheet header */}
+      <div className="flex items-center justify-between border-b border-border/50 px-6 py-5">
+        <div className="flex items-center gap-4">
+          <div className="flex size-10 items-center justify-center rounded-xl bg-primary/10 text-base font-bold text-primary">
+            {competitor.name.slice(0, 1)}
+          </div>
+          <div>
+            <h2 className="text-[17px] font-semibold tracking-[-0.01em]">{competitor.name}</h2>
+            <p className="font-mono text-[11px] text-muted-foreground">{competitor.competitor_id} · {competitor.category}</p>
+          </div>
+        </div>
+        <Button variant="ghost" size="icon-sm" className="text-muted-foreground" onClick={onClose}>
+          <XCircle className="size-5" />
+        </Button>
+      </div>
+
+      {/* Sheet body */}
+      <div className="flex-1 overflow-y-auto px-6 py-6">
+        <div className="flex flex-col gap-8">
+          {/* Quick crawl */}
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-2">
+              <Settings2 className="size-4 text-primary" />
+              <h3 className="text-sm font-semibold">快速采集</h3>
+            </div>
+            <div className="flex flex-col gap-3 rounded-2xl border border-border/50 bg-muted/20 p-4">
+              <div className="flex items-center gap-2 text-[12px]">
+                <Globe className="size-3.5 text-muted-foreground" />
+                <span className="font-mono text-muted-foreground">https://{competitor.name.toLowerCase()}.com/news</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <Select defaultValue="changelog">
+                  <SelectTrigger className="h-8 w-[140px] text-[12px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectGroup>
+                      {sourceTypes.map((s) => (
+                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
+                <Button size="sm" className="btn-press rounded-full" onClick={onCrawl} disabled={crawling}>
+                  {crawling ? <Loader2 className="size-3.5 animate-spin" /> : <Play className="size-3.5" />}
+                  {crawling ? '采集中…' : '开始采集'}
+                </Button>
+              </div>
+              {crawling && (
+                <div className="mt-1">
+                  <div className="flex items-center justify-between text-[11px] text-sky-600">
+                    <span>正在采集…</span>
+                    <span className="font-mono">{progress}%</span>
+                  </div>
+                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-sky-100">
+                    <motion.div
+                      className="h-full rounded-full bg-primary"
+                      animate={{ width: `${progress}%` }}
+                      transition={{ duration: 0.3 }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Task log for this competitor */}
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-2">
+              <History className="size-4 text-primary" />
+              <h3 className="text-sm font-semibold">采集日志</h3>
+              <span className="font-mono text-[11px] text-muted-foreground">{tasks.length} 条</span>
+            </div>
+
+            {tasks.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border/50 bg-muted/10 py-12 text-center">
+                <Activity className="size-8 text-muted-foreground/30" />
+                <p className="text-[13px] text-muted-foreground">暂无采集记录</p>
+                <p className="text-[11px] text-muted-foreground/60">点击上方"开始采集"启动首次抓取</p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {tasks.map((t) => {
+                  const meta = STATUS_META[t.status]
+                  const Icon = meta.icon
+                  return (
+                    <motion.div
+                      key={t.task_id}
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      className="flex flex-col gap-3 rounded-xl border border-border/50 bg-white p-4 transition-shadow hover:shadow-sm"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono text-[11px] text-muted-foreground">{t.task_id}</span>
+                        <Badge variant="outline" className={cn('gap-1 border text-[10px] font-medium', meta.className)}>
+                          <Icon className={cn('size-3', t.status === 'processing' && 'animate-spin')} />
+                          {meta.label}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+                          <div
+                            className={cn('h-full rounded-full transition-all duration-500', t.status === 'failed' ? 'bg-red-400' : t.status === 'completed' ? 'bg-emerald-400' : 'bg-primary')}
+                            style={{ width: `${t.progress_percentage}%` }}
+                          />
+                        </div>
+                        <span className="w-10 text-right font-mono text-[11px] tabular-nums text-muted-foreground">{t.progress_percentage}%</span>
+                      </div>
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="flex items-center gap-1 text-muted-foreground">
+                          <FileStack className="size-3" />
+                          {t.documents_created} 文档
+                        </span>
+                        {t.status === 'failed' && (
+                          <Button variant="ghost" size="sm" className="h-6 rounded-full text-[11px] text-primary">
+                            <RefreshCw className="size-3" />重试
+                          </Button>
+                        )}
+                      </div>
+                    </motion.div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
   )
 }

@@ -1,14 +1,10 @@
 'use client'
 
-import { useState } from 'react'
 import type * as React from 'react'
 import {
-  KeyRound,
-  Plus,
   Radar,
   Sparkles,
 } from 'lucide-react'
-import { toast } from 'sonner'
 
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -21,16 +17,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { domains } from '@/lib/mock-data'
 
 export type TabKey = 'ingestion' | 'knowledge' | 'swot' | 'evaluation'
@@ -58,22 +44,6 @@ export function AppShell({
   onDomainChange: (value: string) => void
   children: React.ReactNode
 }) {
-  const [addOpen, setAddOpen] = useState(false)
-  const [newName, setNewName] = useState('')
-  const [newUrl, setNewUrl] = useState('')
-
-  function handleAdd() {
-    if (!newName.trim()) return
-    toast.success(`竞品「${newName.trim()}」已加入监控列表`, {
-      description: newUrl.trim()
-        ? `来源：${newUrl.trim()}`
-        : '请配置采集来源以开始抓取',
-    })
-    setNewName('')
-    setNewUrl('')
-    setAddOpen(false)
-  }
-
   return (
     <div className="flex min-h-svh flex-col bg-background">
       {/* ================================================================
@@ -151,17 +121,6 @@ export function AppShell({
               </span>
             </div>
 
-            {/* Add Competitor */}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 gap-1.5 rounded-full text-[12px] font-medium text-white/80 hover:text-white hover:bg-white/10"
-              onClick={() => setAddOpen(true)}
-            >
-              <Plus className="size-3.5" />
-              <span className="hidden sm:inline">添加竞品</span>
-            </Button>
-
             {/* User Avatar */}
             <Avatar className="size-7 rounded-full ring-2 ring-white/20">
               <AvatarFallback className="rounded-full bg-primary/30 text-[11px] font-medium text-white">
@@ -195,61 +154,6 @@ export function AppShell({
         </div>
       </footer>
 
-      {/* ================================================================
-          Add Competitor Dialog
-          ================================================================ */}
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>添加竞品</DialogTitle>
-            <DialogDescription>
-              输入竞品名称与官方地址，即可加入监控列表并启动数据采集。
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col gap-4 pt-2">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="add-name" className="text-[12px]">
-                竞品名称
-              </Label>
-              <Input
-                id="add-name"
-                placeholder="例如：DeepSeek"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
-                    handleAdd()
-                  }
-                }}
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="add-url" className="text-[12px]">
-                官方地址 <span className="text-muted-foreground">(选填)</span>
-              </Label>
-              <Input
-                id="add-url"
-                placeholder="https://..."
-                value={newUrl}
-                onChange={(e) => setNewUrl(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
-                    handleAdd()
-                  }
-                }}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAddOpen(false)}>
-              取消
-            </Button>
-            <Button onClick={handleAdd} disabled={!newName.trim()}>
-              确认添加
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }
