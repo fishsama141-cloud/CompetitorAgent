@@ -1,4 +1,8 @@
-"""ChromaDB vector store — chunk, embed, index & search."""
+"""ChromaDB vector store — chunk, embed, index & search.
+
+Uses local sentence-transformers (BAAI/bge-small-zh-v1.5) for embeddings.
+No API key required — runs entirely offline.
+"""
 
 from __future__ import annotations
 
@@ -6,19 +10,21 @@ import uuid
 from typing import List
 
 import chromadb
-from openai import OpenAI
+import os
+
+from sentence_transformers import SentenceTransformer
 
 from backend.config import settings
 
-
-# ── Singletons (lazy init on first use) ──────────────────────
+# ── Singletons ──────────────────────────────────────────────
 _chroma_client: chromadb.PersistentClient | None = None
 _collection: chromadb.Collection | None = None
-_openai_client: OpenAI | None = None
+_embed_model: SentenceTransformer | None = None
 
 COLLECTION_NAME = "competitor_docs"
 CHUNK_SIZE = 400
 CHUNK_OVERLAP = 50
+EMBED_MODEL_NAME = "all-MiniLM-L6-v2"  # 384-dim, fast, good multilingual support
 
 
 def _get_chroma() -> chromadb.Collection:
@@ -32,20 +38,20 @@ def _get_chroma() -> chromadb.Collection:
     return _collection
 
 
-def _get_openai() -> OpenAI:
-    global _openai_client
-    if _openai_client is None:
-        _openai_client = OpenAI(
-            api_key=settings.openai_api_key,
-            base_url=settings.openai_base_url,
-        )
-    return _openai_client
+def _get_embedder() -> SentenceTransformer:
+    global _embed_model
+    if _embed_model is None:
+        # Use HF mirror for faster downloads in China
+        if settings.hf_endpoint:
+            os.environ["HF_ENDPOINT"] = settings.hf_endpoint
+        _embed_model = SentenceTransformer(EMBED_MODEL_NAME)
+    return _embed_model
 
 
-# ── Chunking ──────────────────────────────────────────────────
+# ── Chunking ─────────────────────────────────────────────────
 
 def chunk_text(text: str, size: int = CHUNK_SIZE, overlap: int = CHUNK_OVERLAP) -> List[str]:
-    """Sliding-window split.  Each chunk is ~400 chars with 50-char overlap."""
+    """Sliding-window split (400 chars / 50 overlap)."""
     chunks: List[str] = []
     start = 0
     while start < len(text):
@@ -59,7 +65,7 @@ def chunk_text(text: str, size: int = CHUNK_SIZE, overlap: int = CHUNK_OVERLAP) 
     return chunks
 
 
-# ── Ingest ────────────────────────────────────────────────────
+# ── Ingest ───────────────────────────────────────────────────
 
 def ingest(
     text: str,
@@ -67,10 +73,7 @@ def ingest(
     source_url: str,
     source_type: str,
 ) -> int:
-    """Chunk text, embed each chunk, and upsert into ChromaDB.
-
-    Returns number of chunks created.
-    """
+    """Chunk text → embed locally → upsert into ChromaDB.  Returns chunk count."""
     if not text.strip():
         return 0
 
@@ -78,15 +81,10 @@ def ingest(
     if not chunks:
         return 0
 
-    openai = _get_openai()
+    model = _get_embedder()
     collection = _get_chroma()
 
-    # Batch-embed all chunks at once for speed
-    resp = openai.embeddings.create(
-        model="text-embedding-3-small",
-        input=chunks,
-    )
-    embeddings = [d.embedding for d in resp.data]
+    embeddings = model.encode(chunks, normalize_embeddings=True).tolist()
 
     ids = [f"{competitor_id}_{uuid.uuid4().hex[:10]}" for _ in chunks]
     metadatas = [
@@ -109,25 +107,18 @@ def ingest(
     return len(chunks)
 
 
-# ── Search ────────────────────────────────────────────────────
+# ── Search ───────────────────────────────────────────────────
 
 def search(
     query: str,
     competitor_id: str,
     top_k: int = 5,
 ) -> List[dict]:
-    """Semantic search: embed the query → retrieve top_k from ChromaDB.
-
-    Returns list of dicts: { chunk_id, content, source, similarity_score }
-    """
-    openai = _get_openai()
+    """Embed query → ChromaDB cosine search → list of {chunk_id, content, source, similarity_score}."""
+    model = _get_embedder()
     collection = _get_chroma()
 
-    q_embedding = (
-        openai.embeddings.create(model="text-embedding-3-small", input=[query])
-        .data[0]
-        .embedding
-    )
+    q_embedding = model.encode([query], normalize_embeddings=True).tolist()[0]
 
     results = collection.query(
         query_embeddings=[q_embedding],
@@ -143,10 +134,8 @@ def search(
 
     output: List[dict] = []
     for i in range(len(ids_list)):
-        # ChromaDB returns L2 or cosine distance depending on config;
-        # we store with cosine space, so convert distance → similarity
         distance = distances_list[i] if i < len(distances_list) else 0.0
-        similarity = 1.0 - min(distance / 2.0, 1.0)  # cosine sim from cosine distance
+        similarity = 1.0 - min(distance / 2.0, 1.0)
 
         meta = metas_list[i] if i < len(metas_list) else {}
         output.append({

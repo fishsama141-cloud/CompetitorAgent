@@ -24,5 +24,8 @@ class Settings(BaseSettings):
     # ---- Crawler ----
     crawl_timeout_seconds: int = 30
 
+    # ---- HuggingFace ----
+    hf_endpoint: str = "https://huggingface.co"
+
 
 settings = Settings()
