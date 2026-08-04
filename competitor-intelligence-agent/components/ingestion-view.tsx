@@ -78,7 +78,7 @@ const STATUS_META: Record<
   },
   processing: {
     label: 'Processing',
-    className: 'border-sky-200 bg-sky-50 text-sky-700',
+    className: 'border-violet-200 bg-violet-50 text-violet-700',
     icon: Loader2,
   },
   failed: {
@@ -244,7 +244,7 @@ export function IngestionView({ domain }: { domain: string }) {
       </section>
 
       {/* ---- Crawl Console ---- */}
-      <Card className="card-shadow overflow-hidden border-0 bg-white transition-shadow hover:card-shadow-hover">
+      <Card className="gradient-card card-shadow overflow-hidden border-0 bg-white transition-shadow hover:card-shadow-hover">
         <CardHeader className="border-b border-border/50 pb-5">
           <CardTitle className="flex items-center gap-2.5 text-[15px] tracking-tight">
             <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10">
@@ -345,20 +345,20 @@ export function IngestionView({ domain }: { domain: string }) {
             </div>
 
             {crawling && (
-              <div className="rounded-2xl border border-sky-200 bg-sky-50/60 p-5">
+              <div className="rounded-2xl border border-violet-200 bg-violet-50/60 p-5">
                 <div className="flex items-center justify-between text-[12px]">
-                  <span className="flex items-center gap-2 font-medium text-sky-700">
+                  <span className="flex items-center gap-2 font-medium text-violet-700">
                     <Loader2 className="size-3.5 animate-spin" />
                     正在解析页面并生成向量嵌入
                   </span>
-                  <span className="font-mono text-sky-600">
+                  <span className="font-mono text-violet-600">
                     {progress}% · 预计剩余{' '}
                     {Math.max(1, Math.round((100 - progress) / 12))}s
                   </span>
                 </div>
-                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-sky-200/50">
+                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-violet-200/50">
                   <div
-                    className="h-full rounded-full bg-sky-500 transition-[width] duration-500 ease-out"
+                    className="h-full rounded-full bg-violet-500 transition-[width] duration-500 ease-out"
                     style={{ width: `${progress}%` }}
                   />
                 </div>
@@ -561,7 +561,7 @@ export function IngestionView({ domain }: { domain: string }) {
                                         ? 'bg-red-400'
                                         : t.status === 'completed'
                                           ? 'bg-emerald-400'
-                                          : 'bg-sky-400',
+                                          : 'bg-violet-400',
                                     )}
                                     style={{ width: `${t.progress_percentage}%` }}
                                   />
@@ -629,12 +629,12 @@ function StatTile({
 }) {
   const accentClass = {
     primary: 'text-primary bg-primary/10 ring-primary/20',
-    signal: 'text-sky-600 bg-sky-50 ring-sky-200',
+    signal: 'text-violet-600 bg-violet-50 ring-violet-200',
     weakness: 'text-red-500 bg-red-50 ring-red-200',
   }[accent]
 
   return (
-    <Card className="card-shadow gap-0 border-0 bg-white py-0 transition-shadow hover:card-shadow-hover">
+    <Card className="card-shadow stat-accent gap-0 border-0 bg-white py-0 transition-shadow hover:card-shadow-hover">
       <div className="flex items-start gap-3 p-5">
         <div
           className={cn(

@@ -60,7 +60,7 @@ const METRICS = [
     en: 'Citation Accuracy',
     value: evaluations.citation_accuracy,
     icon: Quote,
-    tone: 'sky' as const,
+    tone: 'violet' as const,
     hint: '引用标签与原文片段的匹配程度',
   },
   {
@@ -69,7 +69,7 @@ const METRICS = [
     en: 'Completeness',
     value: evaluations.completeness,
     icon: BadgeCheck,
-    tone: 'blue' as const,
+    tone: 'violet' as const,
     hint: '是否覆盖问题涉及的全部关键维度',
   },
   {
@@ -86,8 +86,7 @@ const METRICS = [
 
 const TONE_MAP = {
   emerald: { text: 'text-emerald-600', ring: 'ring-emerald-200', bg: 'bg-emerald-50', stroke: '#10b981' },
-  sky: { text: 'text-sky-600', ring: 'ring-sky-200', bg: 'bg-sky-50', stroke: '#0284c7' },
-  blue: { text: 'text-blue-600', ring: 'ring-blue-200', bg: 'bg-blue-50', stroke: '#3b82f6' },
+  violet: { text: 'text-violet-600', ring: 'ring-violet-200', bg: 'bg-violet-50', stroke: '#7c3aed' },
 }
 
 export function EvaluationView() {
@@ -231,7 +230,7 @@ export function EvaluationView() {
                           h.status === 'passed'
                             ? 'bg-emerald-50 text-emerald-700'
                             : h.status === 'running'
-                              ? 'bg-sky-50 text-sky-700'
+                              ? 'bg-violet-50 text-violet-700'
                               : 'bg-red-50 text-red-600',
                         )}
                       >
@@ -253,7 +252,7 @@ export function EvaluationView() {
       {/* ---- Quality Gate ---- */}
       <Card className="card-shadow border-0 bg-white">
         <CardContent className="flex flex-wrap items-center gap-4 py-5">
-          <Sparkles className="size-4 shrink-0 text-sky-500" />
+          <Sparkles className="size-4 shrink-0 text-primary" />
           <p className="min-w-0 flex-1 text-[12.5px] leading-relaxed text-muted-foreground text-pretty">
             当前报告的忠实度与引用准确率均高于 0.90 阈值，幻觉率 0.03 处于优秀区间。
             建议保留现有检索窗口（Top-K 5）与引用强制策略，下次评估在新增

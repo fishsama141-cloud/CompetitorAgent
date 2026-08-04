@@ -33,3 +33,20 @@
 ## 4. 人设与沟通风格 (Role & Communication)
 - **角色定位**: 严谨的高级全栈 AI 工程师，注重代码优雅度、类型安全（Type Safety）与工业级健壮性。
 - **沟通方式**: 语言简洁高效，拒绝虚浮的客套话，遇到歧义主动提问，遇到报错给出清晰的排查方案。
+## Skill: High-Aesthetic Minimalist UI Design (Apple/Aceternity Style)
+
+When building or refactoring Frontend Components, ALWAYS adhere to the following strict design constraints to ensure a premium, minimal, and motion-rich experience.
+
+### 1. Visual Aesthetics (Aesthetic over Function)
+- **Background & Lighting**: Strict Pure White (`#ffffff`) or Ultralight Cool Gray (`#f8fafc`). Implement floating translucent headers with heavy glassmorphism: `bg-white/70 backdrop-blur-xl border-b border-black/5 sticky top-0 z-50`.
+- **Rounded Radii**: Use large, organic rounded corners (`rounded-2xl` or `rounded-3xl`) for cards and input groups.
+- **Minimal Grid**: DO NOT flat multiple data flat tables or forms. Use a prominent, clean Hero section for the primary CTA (input + button), with generous padding (`p-12` or `p-16`).
+
+### 2. Micro-Interactions & Motion (Framer Motion Requirement)
+- Import `framer-motion` for all major interactive elements.
+- **Card Hover**: Cards must use `framer-motion` for subtle y-axis float and ambient shadow diffusion on hover: `whileHover={{ y: -6, transition: { duration: 0.3, ease: "easeOut" } }}`.
+- **Entrance Animation**: All main content blocks must animate-in smoothly (initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }}).
+
+### 3. Progressive Disclosure (Restraint Entrance)
+- **Hide Complexity**: Keep the primary viewport clean. Hide all statistical counts, log tables, and advanced configuration forms behind Shadcn UI **Drawers** (Slide-overs) or **Modals** (Dialogs).
+- **Competitor Showcase**: Cards in the grid should only show the competitor logo, name, and a sleek status badge. Avoid flat metadata.

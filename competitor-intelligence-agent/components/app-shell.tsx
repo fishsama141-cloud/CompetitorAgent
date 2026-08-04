@@ -75,28 +75,28 @@ export function AppShell({
   }
 
   return (
-    <div className="flex min-h-svh flex-col bg-background">
+    <div className="flex min-h-svh flex-col page-bg">
       {/* ================================================================
-          Top Navigation — Apple-style frosted glass
+          Top Navigation — Dark pill-style (agency-os inspired)
           ================================================================ */}
-      <header className="glass-surface sticky top-0 z-30 border-b border-border/50">
+      <header className="glass-header sticky top-0 z-30 border-b border-white/10">
         <div className="flex h-14 items-center gap-4 px-6 lg:gap-8 lg:px-10">
           {/* ---- Logo ---- */}
           <div className="flex shrink-0 items-center gap-2.5">
-            <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10">
-              <Radar className="size-[18px] text-primary" />
+            <div className="flex size-8 items-center justify-center rounded-lg bg-primary/20">
+              <Radar className="size-[18px] text-primary-foreground" />
             </div>
             <div className="hidden flex-col leading-none sm:flex">
-              <span className="text-[14px] font-semibold tracking-tight text-foreground">
+              <span className="text-[14px] font-semibold tracking-tight text-white">
                 Competitor Intel
               </span>
-              <span className="font-mono text-[9px] tracking-[0.18em] text-muted-foreground/70 uppercase">
+              <span className="font-mono text-[9px] tracking-[0.18em] text-white/40 uppercase">
                 Agent v2.4
               </span>
             </div>
           </div>
 
-          {/* ---- Center Tabs — Apple-style underline indicator ---- */}
+          {/* ---- Center Tabs ---- */}
           <nav className="flex flex-1 items-center justify-center gap-0.5" role="tablist">
             {NAV.map((item) => {
               const isActive = active === item.key
@@ -108,14 +108,13 @@ export function AppShell({
                   onClick={() => onChange(item.key)}
                   className={cn(
                     'relative px-4 py-3.5 text-[13px] font-medium tracking-tight transition-colors lg:px-6',
-                    'hover:text-foreground',
+                    'hover:text-white',
                     isActive
-                      ? 'text-foreground'
-                      : 'text-muted-foreground',
+                      ? 'text-white'
+                      : 'text-white/50',
                   )}
                 >
                   {item.label}
-                  {/* Apple-style bottom indicator bar */}
                   {isActive && (
                     <span className="absolute inset-x-3 bottom-0 h-[2.5px] rounded-full bg-primary lg:inset-x-5" />
                   )}
@@ -129,7 +128,7 @@ export function AppShell({
             {/* Domain Selector */}
             <Select value={domain} onValueChange={(v) => onDomainChange(v as string)}>
               <SelectTrigger
-                className="h-8 w-[128px] border-0 bg-muted/60 text-[12px] shadow-none hover:bg-muted lg:w-[148px]"
+                className="h-8 w-[128px] border-white/15 bg-white/10 text-[12px] text-white/80 shadow-none hover:bg-white/15 lg:w-[148px]"
               >
                 <SelectValue />
               </SelectTrigger>
@@ -145,9 +144,9 @@ export function AppShell({
             </Select>
 
             {/* API Key indicator — green dot + label */}
-            <div className="hidden items-center gap-2 rounded-full bg-emerald-50 px-2.5 py-1 ring-1 ring-emerald-200/60 lg:flex">
-              <span className="size-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.4)]" />
-              <span className="font-mono text-[10px] font-medium text-emerald-700">
+            <div className="hidden items-center gap-2 rounded-full bg-emerald-500/15 px-2.5 py-1 ring-1 ring-emerald-400/30 lg:flex">
+              <span className="size-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.5)]" />
+              <span className="font-mono text-[10px] font-medium text-emerald-300">
                 Connected
               </span>
             </div>
@@ -156,7 +155,7 @@ export function AppShell({
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 gap-1.5 rounded-full text-[12px] font-medium text-primary hover:bg-primary/10"
+              className="h-8 gap-1.5 rounded-full text-[12px] font-medium text-white/80 hover:text-white hover:bg-white/10"
               onClick={() => setAddOpen(true)}
             >
               <Plus className="size-3.5" />
@@ -164,8 +163,8 @@ export function AppShell({
             </Button>
 
             {/* User Avatar */}
-            <Avatar className="size-7 rounded-full ring-2 ring-border/50">
-              <AvatarFallback className="rounded-full bg-primary/10 text-[11px] font-medium text-primary">
+            <Avatar className="size-7 rounded-full ring-2 ring-white/20">
+              <AvatarFallback className="rounded-full bg-primary/30 text-[11px] font-medium text-white">
                 林
               </AvatarFallback>
             </Avatar>
@@ -174,7 +173,7 @@ export function AppShell({
       </header>
 
       {/* ================================================================
-          Main Content — generous Apple-style spacing
+          Main Content — generous spacing with subtle gradient depth
           ================================================================ */}
       <main className="relative flex-1">
         <div className="relative px-5 py-8 lg:px-12 lg:py-12">
@@ -183,12 +182,12 @@ export function AppShell({
       </main>
 
       {/* ================================================================
-          Footer — minimal, clean
+          Footer — subtle violet-tinted surface
           ================================================================ */}
-      <footer className="border-t border-border/50 bg-white px-5 py-4 lg:px-10">
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 font-mono text-[10px] tracking-wider text-muted-foreground/70 uppercase">
+      <footer className="border-t border-border bg-surface/60 px-5 py-4 lg:px-10">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 font-mono text-[10px] tracking-wider text-muted-foreground uppercase">
           <span className="flex items-center gap-1.5">
-            <Sparkles className="size-3 text-primary/50" />
+            <Sparkles className="size-3 text-primary/60" />
             Competitor Intelligence Agent
           </span>
           <span>ChromaDB · text-embedding-3-small</span>

@@ -56,71 +56,69 @@
 }
 
 /* ============================================================
-   Apple-Inspired Cool Minimalist Theme
-   Palette: Cool slate + Ice blue accents
-   Reference: apple.com design language (generous whitespace,
-   frosted glass, bold type, subtle shadows, minimal ornament)
+   AgencyOS-Inspired Theme — Violet primary + rich gradients
+   Reference: D:\agency-os-main\agency-os-main
    ============================================================ */
 
 :root {
   color-scheme: light;
 
-  /* Surfaces — Cool white & slate */
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  /* Surfaces — warm white & violet-tinted */
+  --background: #faf9fc;
+  --foreground: #1e1040;
   --card: #ffffff;
-  --card-foreground: #0f172a;
-  --surface: #f8fafc;
+  --card-foreground: #1e1040;
+  --surface: #f5f3fa;
 
   --popover: #ffffff;
-  --popover-foreground: #0f172a;
+  --popover-foreground: #1e1040;
 
-  /* Accent — Cool ice blue */
-  --primary: #3b82f6;
+  /* Accent — violet (agency-os style) */
+  --primary: #7c3aed;
   --primary-foreground: #ffffff;
 
-  /* Signal — deeper sky blue for indicators */
-  --signal: #0284c7;
+  /* Signal — deeper violet for indicators */
+  --signal: #6d28d9;
   --signal-foreground: #ffffff;
 
-  /* Secondary & muted — cool slates */
-  --secondary: #f1f5f9;
-  --secondary-foreground: #0f172a;
-  --muted: #f1f5f9;
-  --muted-foreground: #64748b;
-  --accent: #f1f5f9;
-  --accent-foreground: #0f172a;
+  /* Secondary & muted — warm violet-tinted grays */
+  --secondary: #f3f0fa;
+  --secondary-foreground: #1e1040;
+  --muted: #f3f0fa;
+  --muted-foreground: #786b94;
+  --accent: #ede9fe;
+  --accent-foreground: #1e1040;
 
   --destructive: #ef4444;
 
-  /* Borders — airy, barely-there */
-  --border: #e2e8f0;
-  --input: #e2e8f0;
-  --ring: rgba(59, 130, 246, 0.35);
+  /* Borders — slightly more visible */
+  --border: #e2dcee;
+  --input: #e2dcee;
+  --ring: rgba(124, 58, 237, 0.35);
 
   /* SWOT semantic colors */
-  --strength: #3b82f6;
+  --strength: #7c3aed;
   --weakness: #ef4444;
   --opportunity: #10b981;
   --threat: #f59e0b;
 
-  --chart-1: #3b82f6;
-  --chart-2: #0284c7;
+  --chart-1: #7c3aed;
+  --chart-2: #a78bfa;
   --chart-3: #10b981;
   --chart-4: #f59e0b;
   --chart-5: #ef4444;
 
-  --radius: 0.625rem;
+  --radius: 0.5rem;
 
   /* Sidebar tokens — kept for shadcn compatibility only */
-  --sidebar: #f8fafc;
-  --sidebar-foreground: #0f172a;
-  --sidebar-primary: #3b82f6;
+  --sidebar: #faf9fc;
+  --sidebar-foreground: #1e1040;
+  --sidebar-primary: #7c3aed;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f1f5f9;
-  --sidebar-accent-foreground: #0f172a;
-  --sidebar-border: #e2e8f0;
-  --sidebar-ring: rgba(59, 130, 246, 0.35);
+  --sidebar-accent: #ede9fe;
+  --sidebar-accent-foreground: #1e1040;
+  --sidebar-border: #e2dcee;
+  --sidebar-ring: rgba(124, 58, 237, 0.35);
 }
 
 @layer base {
@@ -134,26 +132,85 @@
   }
 }
 
-/* ---- Apple-style frosted glass utility ---- */
-@utility glass-surface {
-  background: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+/* ---- Page gradient background — warm violet wash ---- */
+@utility page-bg {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(124, 58, 237, 0.04) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 50% at 100% 100%, rgba(167, 139, 250, 0.03) 0%, transparent 50%),
+    var(--background);
 }
 
-/* ---- Subtle card shadow — Apple's barely-there depth ---- */
+/* ---- CSS grain/noise texture (no image file needed) ---- */
+@utility grain-bg {
+  position: relative;
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0.035;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 256px 256px;
+    pointer-events: none;
+    z-index: 0;
+  }
+}
+
+/* ---- Gradient accent card — subtle gradient border effect ---- */
+@utility gradient-card {
+  position: relative;
+  background: var(--card);
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.15), rgba(167, 139, 250, 0.06), transparent 60%);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+}
+
+/* ---- Card shadow — subtle but visible depth ---- */
 @utility card-shadow {
   box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.04),
-    0 1px 3px rgba(0, 0, 0, 0.04),
-    0 1px 2px rgba(0, 0, 0, 0.02);
+    0 0 0 1px rgba(0, 0, 0, 0.05),
+    0 1px 3px rgba(0, 0, 0, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 @utility card-shadow-hover {
   box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.05),
-    0 2px 8px rgba(0, 0, 0, 0.06),
-    0 2px 4px rgba(0, 0, 0, 0.03);
+    0 0 0 1px rgba(0, 0, 0, 0.07),
+    0 4px 16px rgba(0, 0, 0, 0.08),
+    0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+/* ---- Glass header — dark semi-transparent (agency-os style) ---- */
+@utility glass-header {
+  background: rgba(15, 10, 30, 0.88);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+/* ---- Stat tile accent bar — colored left border ---- */
+@utility stat-accent {
+  position: relative;
+  overflow: hidden;
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: linear-gradient(180deg, var(--primary) 0%, rgba(124, 58, 237, 0.2) 100%);
+    border-radius: 0 9999px 9999px 0;
+  }
 }
 
 /* Apple-style scrollbar */
@@ -166,10 +223,10 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
+    background: #d4cce2;
     border-radius: 9999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
+    background: #a094b8;
   }
 }

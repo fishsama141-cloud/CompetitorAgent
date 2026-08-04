@@ -277,7 +277,7 @@ export function KnowledgeView() {
                       key={`${f.name}-${i}`}
                       className="flex items-center gap-3 rounded-xl border border-border/50 bg-muted/20 px-4 py-2.5 transition-colors hover:border-border"
                     >
-                      <FileText className="size-3.5 shrink-0 text-sky-500" />
+                      <FileText className="size-3.5 shrink-0 text-primary/70" />
                       <span className="truncate text-[12px]">{f.name}</span>
                       <span className="ml-auto shrink-0 font-mono text-[10px] text-muted-foreground">
                         {f.size}
@@ -390,7 +390,7 @@ export function KnowledgeView() {
                   <li key={r.chunk_id}>
                     <Sheet>
                       <SheetTrigger
-                        className="group w-full cursor-pointer rounded-2xl border border-border/50 bg-muted/15 p-4 text-left transition-all hover:border-sky-200 hover:bg-sky-50/30"
+                        className="group w-full cursor-pointer rounded-2xl border border-border/50 bg-muted/15 p-4 text-left transition-all hover:border-violet-200 hover:bg-violet-50/30"
                         onClick={() => setSelectedChunk(r)}
                       >
                         <div className="flex items-center gap-2">
@@ -407,7 +407,7 @@ export function KnowledgeView() {
                                 r.similarity_score >= 0.9
                                   ? 'bg-emerald-50 text-emerald-700'
                                   : r.similarity_score >= 0.82
-                                    ? 'bg-sky-50 text-sky-700'
+                                    ? 'bg-violet-50 text-violet-700'
                                     : 'bg-muted text-muted-foreground',
                               )}
                             >
@@ -419,7 +419,7 @@ export function KnowledgeView() {
                           </p>
                           <div className="mt-3 h-[3px] overflow-hidden rounded-full bg-muted">
                             <div
-                              className="h-full rounded-full bg-gradient-to-r from-sky-400 to-emerald-400"
+                              className="h-full rounded-full bg-gradient-to-r from-violet-400 to-emerald-400"
                               style={{ width: `${r.similarity_score * 100}%` }}
                             />
                           </div>
@@ -441,7 +441,7 @@ export function KnowledgeView() {
                                 r.similarity_score >= 0.9
                                   ? 'bg-emerald-50 text-emerald-700'
                                   : r.similarity_score >= 0.82
-                                    ? 'bg-sky-50 text-sky-700'
+                                    ? 'bg-violet-50 text-violet-700'
                                     : 'bg-muted text-muted-foreground',
                               )}
                             >
@@ -619,12 +619,12 @@ function MetricCard({
 }) {
   const accentClass = {
     primary: 'text-primary bg-primary/10 ring-primary/20',
-    signal: 'text-sky-600 bg-sky-50 ring-sky-200',
+    signal: 'text-violet-600 bg-violet-50 ring-violet-200',
     opportunity: 'text-emerald-600 bg-emerald-50 ring-emerald-200',
   }[accent]
 
   return (
-    <Card className="card-shadow gap-0 border-0 bg-white py-0 transition-shadow hover:card-shadow-hover">
+    <Card className="card-shadow stat-accent gap-0 border-0 bg-white py-0 transition-shadow hover:card-shadow-hover">
       <div className="flex flex-col gap-3 p-5">
         <div className="flex items-center gap-2.5">
           <div

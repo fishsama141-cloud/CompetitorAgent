@@ -82,9 +82,9 @@ const TONE: Record<
   { border: string; chip: string; bar: string }
 > = {
   strength: {
-    border: 'border-border/50 hover:border-blue-200',
-    chip: 'bg-blue-50 text-blue-600 ring-blue-200',
-    bar: 'bg-blue-400',
+    border: 'border-border/50 hover:border-violet-200',
+    chip: 'bg-violet-50 text-violet-600 ring-violet-200',
+    bar: 'bg-violet-400',
   },
   weakness: {
     border: 'border-border/50 hover:border-red-200',
