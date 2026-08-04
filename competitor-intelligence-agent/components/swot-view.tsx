@@ -333,11 +333,11 @@ export function SwotView({ domain }: { domain: string }) {
                 {copied ? '已复制' : '复制'}
               </Button>
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="rounded-full" onClick={(e) => e.stopPropagation()}>
-                    <Download data-icon="inline-start" className="size-3.5" />
-                    导出
-                  </Button>
+                <DropdownMenuTrigger
+                  render={<Button variant="outline" size="sm" className="rounded-full" onClick={(e) => e.stopPropagation()} />}
+                >
+                  <Download data-icon="inline-start" className="size-3.5" />
+                  导出
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem onClick={() => toast('正在导出 PDF…')}>
