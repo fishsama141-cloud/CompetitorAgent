@@ -174,6 +174,33 @@ class EvaluationData(BaseModel):
 
 
 # ============================================================
+# Auth
+# ============================================================
+
+
+class UserRegisterRequest(BaseModel):
+    username: str = Field(min_length=3, max_length=64)
+    password: str = Field(min_length=6, max_length=128)
+
+
+class UserLoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class TokenData(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    username: str
+
+
+class UserMeData(BaseModel):
+    id: int
+    username: str
+    created_at: str
+
+
+# ============================================================
 # Type aliases for concise route signatures
 # ============================================================
 
@@ -186,3 +213,5 @@ SearchResponse = ApiResponse[SearchResponseData]
 ChatResponse = ApiResponse[ChatResponseData]
 SWOTGenerateResponse = ApiResponse[SWOTGenerateData]
 EvaluationResponse = ApiResponse[EvaluationData]
+TokenResponse = ApiResponse[TokenData]
+UserMeResponse = ApiResponse[UserMeData]

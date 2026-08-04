@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { Toaster } from '@/components/ui/sonner'
+import { AuthProvider } from '@/hooks/use-auth'
 import './globals.css'
 
 const geistSans = Geist({ subsets: ['latin'] })
@@ -32,9 +33,11 @@ export default function RootLayout({
   return (
     <html lang="zh-CN" className="light" style={{ colorScheme: 'light' }}>
       <body className={`${geistSans.className} antialiased`}>
-        <TooltipProvider>{children}</TooltipProvider>
-        <Toaster position="bottom-right" />
-        {process.env.NODE_ENV === 'production' && <Analytics />}
+        <AuthProvider>
+          <TooltipProvider>{children}</TooltipProvider>
+          <Toaster position="bottom-right" />
+          {process.env.NODE_ENV === 'production' && <Analytics />}
+        </AuthProvider>
       </body>
     </html>
   )

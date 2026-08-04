@@ -13,6 +13,9 @@ venv/
 # ChromaDB local vector cache
 chroma_db/
 
+# SQLite databases
+*.db
+
 # Frontend
 node_modules/
 .next/

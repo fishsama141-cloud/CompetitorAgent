@@ -1,10 +1,7 @@
 'use client'
 
 import type * as React from 'react'
-import {
-  Radar,
-  Sparkles,
-} from 'lucide-react'
+import { LogOut, Radar, Sparkles, User } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -21,6 +18,11 @@ import { domains } from '@/lib/mock-data'
 
 export type TabKey = 'ingestion' | 'knowledge' | 'swot' | 'evaluation'
 
+interface UserInfo {
+  id: number
+  username: string
+}
+
 const NAV: {
   key: TabKey
   label: string
@@ -36,14 +38,24 @@ export function AppShell({
   onChange,
   domain,
   onDomainChange,
+  user,
+  onLogin,
+  onLogout,
   children,
 }: {
   active: TabKey
   onChange: (key: TabKey) => void
   domain: string
   onDomainChange: (value: string) => void
+  user: UserInfo | null
+  onLogin: () => void
+  onLogout: () => void
   children: React.ReactNode
 }) {
+  const initials = user
+    ? user.username.slice(0, 2).toUpperCase()
+    : '?'
+
   return (
     <div className="flex min-h-svh flex-col bg-background">
       {/* ================================================================
@@ -121,12 +133,35 @@ export function AppShell({
               </span>
             </div>
 
-            {/* User Avatar */}
-            <Avatar className="size-7 rounded-full ring-2 ring-white/20">
-              <AvatarFallback className="rounded-full bg-primary/30 text-[11px] font-medium text-white">
-                林
-              </AvatarFallback>
-            </Avatar>
+            {/* User area */}
+            {user ? (
+              <div className="flex items-center gap-2">
+                <Avatar className="size-7 rounded-full ring-2 ring-white/20">
+                  <AvatarFallback className="rounded-full bg-primary/30 text-[11px] font-medium text-white">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="hidden text-[12px] font-medium text-white/80 lg:inline">
+                  {user.username}
+                </span>
+                <button
+                  onClick={onLogout}
+                  className="ml-1 rounded-lg p-1.5 text-white/40 transition-colors hover:bg-white/10 hover:text-white/70"
+                  title="退出登录"
+                >
+                  <LogOut className="size-3.5" />
+                </button>
+              </div>
+            ) : (
+              <Button
+                size="sm"
+                onClick={onLogin}
+                className="h-8 gap-1.5 rounded-lg bg-white/15 px-3 text-[12px] font-medium text-white hover:bg-white/25"
+              >
+                <User className="size-3.5" />
+                登录
+              </Button>
+            )}
           </div>
         </div>
       </header>

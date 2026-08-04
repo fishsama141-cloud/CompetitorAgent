@@ -27,5 +27,8 @@ class Settings(BaseSettings):
     # ---- HuggingFace ----
     hf_endpoint: str = "https://huggingface.co"
 
+    # ---- JWT ----
+    jwt_secret: str = "change-me-in-production-use-a-strong-random-secret"
+
 
 settings = Settings()

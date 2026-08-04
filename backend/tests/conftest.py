@@ -1,13 +1,15 @@
-"""Shared fixtures & mocks for API contract tests.
+"""Shared fixtures & mocks for API contract + auth tests.
 
 Strategy: mock at the *service-function* level, not the *library* level.
 This avoids breaking type annotations and class definitions.
+
+For auth tests: use an in-memory SQLite so tests don't touch the real DB.
 """
 
 from __future__ import annotations
 
-import sys
 import os
+import sys
 from typing import Generator
 from unittest.mock import MagicMock, patch
 
@@ -15,6 +17,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
+
+# ── Use in-memory SQLite for tests ──────────────────────────────
+os.environ["CHROMA_PERSIST_DIR"] = "./chroma_db_test"
 
 
 # ── Mock data ─────────────────────────────────────────────────
@@ -46,12 +51,8 @@ def _mock_chat_create(*args, **kwargs):
     return MagicMock(choices=[MagicMock(message=MagicMock(content=MOCK_SWOT_JSON))])
 
 
-def _mock_scraper_fetch(*args, **kwargs):
-    """Async mock for scraper.fetch."""
-    import asyncio
-    async def _f(url, timeout=30):
-        return "This is scraped content for testing purposes."
-    return _f(*args, **kwargs)
+async def _mock_scraper_fetch(url, timeout=30):
+    return "This is scraped content for testing purposes."
 
 
 def _mock_ingest(*args, **kwargs):
@@ -64,7 +65,6 @@ def _mock_search(*args, **kwargs):
 
 # ── Apply patches ─────────────────────────────────────────────
 
-# Must be applied before importing app
 _patches: list = []
 
 
@@ -96,7 +96,6 @@ def pytest_configure():
 
     p5 = patch("backend.services.vector_store._get_embedder")
     mock_embedder = MagicMock()
-    # encode() must return something with .tolist()
     import numpy as np
     mock_embedder.encode.return_value = np.array([[0.1] * 384])
     p5.start().return_value = mock_embedder
@@ -125,10 +124,17 @@ def pytest_unconfigure():
 
 # ── Import app AFTER patches ──────────────────────────────────
 
+# Override DB to use in-memory SQLite for tests
+os.environ["TESTING"] = "1"
+
+from backend.database import Base, engine  # noqa: E402
 from backend.main import app  # noqa: E402
 
 
 @pytest.fixture(scope="module")
 def client() -> Generator[TestClient, None, None]:
+    """Create tables, yield test client, drop tables."""
+    Base.metadata.create_all(bind=engine)
     with TestClient(app) as c:
         yield c
+    Base.metadata.drop_all(bind=engine)

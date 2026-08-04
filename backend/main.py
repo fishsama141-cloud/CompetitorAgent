@@ -1,17 +1,18 @@
 """Competitor Intelligence Agent — FastAPI Backend.
 
 Strictly aligned with api_contract.json.
-Real ingestion & knowledge routes live in routers/; remaining stubs inlined.
+Real ingestion, knowledge, SWOT, evaluation, and auth routes.
 """
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from datetime import date
-from typing import List
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.database import Base, engine
 from backend.schemas import (
     ChatRequest,
     ChatResponse,
@@ -27,12 +28,22 @@ from backend.routers.ingestion import router as ingestion_router
 from backend.routers.knowledge import router as knowledge_router
 from backend.routers.swot import router as swot_router
 from backend.routers.evaluation import router as evaluation_router
+from backend.routers.auth import router as auth_router
+
+
+# ── Lifespan: create tables on startup ────────────────────────
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    yield
+
 
 # ── App factory ──────────────────────────────────────────────
 app = FastAPI(
     title="Competitor Intelligence Agent",
     version="1.0.0",
     docs_url="/docs",
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -44,6 +55,7 @@ app.add_middleware(
 )
 
 # Mount routers
+app.include_router(auth_router)
 app.include_router(ingestion_router)
 app.include_router(knowledge_router)
 app.include_router(swot_router)
@@ -55,6 +67,7 @@ API = "/api/v1"
 # Health
 # ============================================================
 
+
 @app.get(f"{API}/health")
 def health() -> dict:
     return {"status": "ok", "version": "1.0.0"}
@@ -63,6 +76,7 @@ def health() -> dict:
 # ============================================================
 # Competitor
 # ============================================================
+
 
 @app.post(f"{API}/competitors", response_model=CompetitorCreateResponse)
 def create_competitor(body: CompetitorCreateRequest) -> CompetitorCreateResponse:
@@ -91,6 +105,7 @@ def list_competitors() -> CompetitorListResponse:
 # RAG Chat
 # ============================================================
 
+
 @app.post(f"{API}/chat", response_model=ChatResponse)
 def rag_chat(body: ChatRequest) -> ChatResponse:
     return ChatResponse(
@@ -102,5 +117,3 @@ def rag_chat(body: ChatRequest) -> ChatResponse:
             ],
         )
     )
-
-
