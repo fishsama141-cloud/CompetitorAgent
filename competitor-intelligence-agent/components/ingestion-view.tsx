@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from 'react'
 import {
-  ArrowUpRight,
   CalendarClock,
   CheckCircle2,
   FileStack,
@@ -15,6 +14,9 @@ import {
   ScrollText,
   Target,
   XCircle,
+  ChevronDown,
+  ChevronUp,
+  ArrowRight,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -32,9 +34,7 @@ import { Button } from '@/components/ui/button'
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
-  CardTitle,
 } from '@/components/ui/card'
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import {
@@ -65,7 +65,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { ChevronDown, ChevronUp } from 'lucide-react'
 
 const STATUS_META: Record<
   TaskStatus['status'],
@@ -86,6 +85,31 @@ const STATUS_META: Record<
     className: 'border-red-200 bg-red-50 text-red-700',
     icon: XCircle,
   },
+}
+
+/* ── Section header ── */
+function SectionHeader({
+  icon: Icon,
+  title,
+  description,
+}: {
+  icon: React.ComponentType<{ className?: string }>
+  title: string
+  description?: string
+}) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <div className="flex size-7 items-center justify-center rounded-lg bg-primary/10">
+        <Icon className="size-3.5 text-primary" />
+      </div>
+      <div>
+        <h2 className="text-[14px] font-semibold tracking-tight">{title}</h2>
+        {description && (
+          <p className="text-[11px] text-muted-foreground">{description}</p>
+        )}
+      </div>
+    </div>
+  )
 }
 
 export function IngestionView({ domain }: { domain: string }) {
@@ -156,7 +180,7 @@ export function IngestionView({ domain }: { domain: string }) {
       setProgress(100)
       return
     } catch {
-      // 后端不可用，回退到客户端模拟
+      // fallback to mock
     }
 
     setTasks((prev) => [
@@ -212,176 +236,177 @@ export function IngestionView({ domain }: { domain: string }) {
   }
 
   return (
-    <div className="flex flex-col gap-8">
-      {/* ---- Stat row — compact Apple-style ---- */}
-      <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatTile
-          label="监控目标"
-          value={String(stats.targets)}
-          caption="active competitors"
-          icon={Target}
-        />
-        <StatTile
-          label="文档总量"
-          value={stats.docs.toLocaleString('en-US')}
-          caption="documents ingested"
-          icon={FileStack}
-        />
-        <StatTile
-          label="进行中"
-          value={String(stats.running)}
-          caption="crawl running"
-          icon={Loader2}
-          accent="signal"
-        />
-        <StatTile
-          label="失败"
-          value={String(stats.failed)}
-          caption="need attention"
-          icon={XCircle}
-          accent="weakness"
-        />
+    <div className="flex flex-col">
+      {/* ================================================================
+          HERO — big title + description + stats row
+          ================================================================ */}
+      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-white via-violet-50/60 to-violet-100/40 px-6 py-10 lg:px-10 lg:py-14">
+        <div className="relative z-10 flex flex-col gap-8">
+          <div className="flex flex-wrap items-start justify-between gap-6">
+            <div className="flex flex-col gap-2">
+              <span className="font-mono text-[10px] font-medium tracking-[0.2em] text-primary/60 uppercase">
+                Data Pipeline
+              </span>
+              <h1 className="text-[26px] font-bold leading-tight tracking-tight lg:text-[32px]">
+                数据采集
+              </h1>
+              <p className="max-w-lg text-[13px] leading-relaxed text-muted-foreground">
+                自动化竞品数据采集与向量化入库。选择目标、配置来源，一键将非结构化数据转化为可检索的知识片段。
+              </p>
+            </div>
+            <Button onClick={startCrawl} disabled={crawling} size="lg" className="rounded-full">
+              {crawling ? (
+                <Spinner data-icon="inline-start" />
+              ) : (
+                <Play data-icon="inline-start" />
+              )}
+              {crawling ? '采集中…' : '开始采集'}
+            </Button>
+          </div>
+
+          {/* Stats row inside hero */}
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <StatTile
+              label="监控目标"
+              value={String(stats.targets)}
+              caption="active competitors"
+              icon={Target}
+            />
+            <StatTile
+              label="文档总量"
+              value={stats.docs.toLocaleString('en-US')}
+              caption="documents ingested"
+              icon={FileStack}
+            />
+            <StatTile
+              label="进行中"
+              value={String(stats.running)}
+              caption="crawl running"
+              icon={Loader2}
+              accent="signal"
+            />
+            <StatTile
+              label="失败"
+              value={String(stats.failed)}
+              caption="need attention"
+              icon={XCircle}
+              accent="weakness"
+            />
+          </div>
+        </div>
       </section>
 
-      {/* ---- Crawl Console ---- */}
-      <Card className="gradient-card card-shadow overflow-hidden bg-white transition-shadow hover:card-shadow-hover">
-        <CardHeader className="border-b border-border/50 pb-5">
-          <CardTitle className="flex items-center gap-2.5 text-[15px] tracking-tight">
-            <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10">
-              <Globe className="size-4 text-primary" />
-            </div>
-            采集控制台
-          </CardTitle>
-          <CardDescription className="text-[12.5px]">
-            选择竞品目标、配置来源类型，启动异步爬取任务并写入 ChromaDB 向量库。
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pt-6">
-          <FieldGroup className="gap-5">
-            <div className="grid gap-5 lg:grid-cols-[220px_1fr_220px]">
-              <Field>
-                <FieldLabel htmlFor="crawl-target" className="text-[12px]">竞品目标</FieldLabel>
-                <Select
-                  value={target}
-                  onValueChange={(v) => setTarget(v as string)}
-                >
-                  <SelectTrigger id="crawl-target" className="w-full">
-                    <SelectValue>
-                      {(value) =>
-                        seedCompetitors.find((c) => c.competitor_id === value)
-                          ?.name ?? '选择目标'
-                      }
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {seedCompetitors.map((c) => (
-                        <SelectItem key={c.competitor_id} value={c.competitor_id}>
-                          <span className="flex w-full items-center gap-2">
-                            {c.name}
-                            <span className="ml-auto font-mono text-[10px] text-muted-foreground">
-                              {c.competitor_id}
+      {/* ================================================================
+          SECTION 2 — Crawl Console
+          ================================================================ */}
+      <section className="mt-8">
+        <div className="mb-4">
+          <SectionHeader icon={Globe} title="采集控制台" description="配置来源并启动异步爬取任务" />
+        </div>
+        <Card className="card-shadow bg-white">
+          <CardContent className="pt-6">
+            <FieldGroup className="gap-5">
+              <div className="grid gap-5 lg:grid-cols-[220px_1fr_220px]">
+                <Field>
+                  <FieldLabel htmlFor="crawl-target" className="text-[12px]">竞品目标</FieldLabel>
+                  <Select value={target} onValueChange={(v) => setTarget(v as string)}>
+                    <SelectTrigger id="crawl-target" className="w-full">
+                      <SelectValue>
+                        {(value) =>
+                          seedCompetitors.find((c) => c.competitor_id === value)
+                            ?.name ?? '选择目标'
+                        }
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {seedCompetitors.map((c) => (
+                          <SelectItem key={c.competitor_id} value={c.competitor_id}>
+                            <span className="flex w-full items-center gap-2">
+                              {c.name}
+                              <span className="ml-auto font-mono text-[10px] text-muted-foreground">
+                                {c.competitor_id}
+                              </span>
                             </span>
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
 
-              <Field>
-                <FieldLabel htmlFor="crawl-url" className="text-[12px]">来源地址</FieldLabel>
-                <InputGroup>
-                  <InputGroupAddon>
-                    <Link2 className="size-3.5" />
-                  </InputGroupAddon>
-                  <InputGroupInput
-                    id="crawl-url"
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    placeholder="https://deepseek.com/news"
-                    className="font-mono text-[12px]"
-                  />
-                </InputGroup>
-              </Field>
+                <Field>
+                  <FieldLabel htmlFor="crawl-url" className="text-[12px]">来源地址</FieldLabel>
+                  <InputGroup>
+                    <InputGroupAddon>
+                      <Link2 className="size-3.5" />
+                    </InputGroupAddon>
+                    <InputGroupInput
+                      id="crawl-url"
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                      placeholder="https://deepseek.com/news"
+                      className="font-mono text-[12px]"
+                    />
+                  </InputGroup>
+                </Field>
 
-              <Field>
-                <FieldLabel htmlFor="crawl-source" className="text-[12px]">来源类型</FieldLabel>
-                <Select
-                  value={sourceType}
-                  onValueChange={(v) =>
-                    setSourceType(v as TaskStatus['source_type'])
-                  }
-                >
-                  <SelectTrigger id="crawl-source" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectGroup>
-                      {sourceTypes.map((s) => (
-                        <SelectItem key={s.value} value={s.value}>
-                          {s.label}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-4">
-              <Button onClick={startCrawl} disabled={crawling} className="rounded-full">
-                {crawling ? (
-                  <Spinner data-icon="inline-start" />
-                ) : (
-                  <Play data-icon="inline-start" />
-                )}
-                {crawling ? '采集进行中…' : '开始采集'}
-              </Button>
-              <span className="font-mono text-[11px] text-muted-foreground">
-                POST /ingestion.crawl
-              </span>
-            </div>
-
-            {crawling && (
-              <div className="rounded-2xl border border-violet-200 bg-violet-50/60 p-5">
-                <div className="flex items-center justify-between text-[12px]">
-                  <span className="flex items-center gap-2 font-medium text-violet-700">
-                    <Loader2 className="size-3.5 animate-spin" />
-                    正在解析页面并生成向量嵌入
-                  </span>
-                  <span className="font-mono text-violet-600">
-                    {progress}% · 预计剩余{' '}
-                    {Math.max(1, Math.round((100 - progress) / 12))}s
-                  </span>
-                </div>
-                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-violet-200/50">
-                  <div
-                    className="h-full rounded-full bg-violet-500 transition-[width] duration-500 ease-out"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
+                <Field>
+                  <FieldLabel htmlFor="crawl-source" className="text-[12px]">来源类型</FieldLabel>
+                  <Select
+                    value={sourceType}
+                    onValueChange={(v) => setSourceType(v as TaskStatus['source_type'])}
+                  >
+                    <SelectTrigger id="crawl-source" className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {sourceTypes.map((s) => (
+                          <SelectItem key={s.value} value={s.value}>
+                            {s.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </Field>
               </div>
-            )}
-          </FieldGroup>
-        </CardContent>
-      </Card>
 
-      {/* ---- Competitor Cards ---- */}
-      <section className="flex flex-col gap-4">
-        <div className="flex items-end justify-between">
-          <div>
-            <h2 className="text-[15px] font-semibold tracking-tight">
-              竞品目标卡片
-            </h2>
-            <p className="text-[12px] text-muted-foreground">
-              当前领域 · {domain} · 共 {visibleCompetitors.length} 个目标
-            </p>
-          </div>
-          <Button variant="ghost" size="sm" className="text-[12px] text-muted-foreground">
+              {crawling && (
+                <div className="rounded-2xl border border-violet-200 bg-violet-50/60 p-5">
+                  <div className="flex items-center justify-between text-[12px]">
+                    <span className="flex items-center gap-2 font-medium text-violet-700">
+                      <Loader2 className="size-3.5 animate-spin" />
+                      正在解析页面并生成向量嵌入
+                    </span>
+                    <span className="font-mono text-violet-600">
+                      {progress}% · 预计剩余{' '}
+                      {Math.max(1, Math.round((100 - progress) / 12))}s
+                    </span>
+                  </div>
+                  <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-violet-200/50">
+                    <div
+                      className="h-full rounded-full bg-violet-500 transition-[width] duration-500 ease-out"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+            </FieldGroup>
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* ================================================================
+          SECTION 3 — Competitor Cards
+          ================================================================ */}
+      <section className="mt-8">
+        <div className="mb-4 flex items-end justify-between">
+          <SectionHeader icon={Target} title="监控目标" description={`当前领域 · ${domain} · 共 ${visibleCompetitors.length} 个`} />
+          <Button variant="ghost" size="sm" className="text-[11px] text-muted-foreground">
             查看全部
-            <ArrowUpRight data-icon="inline-end" />
+            <ArrowRight data-icon="inline-end" />
           </Button>
         </div>
 
@@ -389,7 +414,7 @@ export function IngestionView({ domain }: { domain: string }) {
           {visibleCompetitors.map((c) => (
             <Card
               key={c.competitor_id}
-              className="card-shadow group gap-0 overflow-hidden bg-white py-0 transition-all hover:card-shadow-hover"
+              className="card-shadow group gap-0 bg-white py-0 transition-all hover:card-shadow-hover"
             >
               <div className="flex items-start gap-3 p-5">
                 <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 font-semibold text-primary ring-1 ring-primary/20">
@@ -461,154 +486,102 @@ export function IngestionView({ domain }: { domain: string }) {
         </div>
       </section>
 
-      {/* ---- Task Log Table — collapsible for progressive disclosure ---- */}
-      <Card className="card-shadow overflow-hidden bg-white transition-shadow hover:card-shadow-hover">
-        <CardHeader
-          className="cursor-pointer border-b border-border/50 pb-5 hover:bg-muted/20"
-          onClick={() => setShowTaskTable(!showTaskTable)}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10">
-                <ScrollText className="size-4 text-primary" />
-              </div>
-              <div>
-                <CardTitle className="text-[15px] tracking-tight">
-                  采集任务与日志
-                </CardTitle>
-                <CardDescription className="text-[12.5px]">
-                  实时追踪任务状态、进度与生成的文档数量 · 共 {tasks.length} 条
-                </CardDescription>
-              </div>
+      {/* ================================================================
+          SECTION 4 — Task Log
+          ================================================================ */}
+      <section className="mt-8">
+        <Card className="card-shadow bg-white">
+          <CardHeader
+            className="cursor-pointer border-b border-border/50 pb-5 hover:bg-muted/20"
+            onClick={() => setShowTaskTable(!showTaskTable)}
+          >
+            <div className="flex items-center justify-between">
+              <SectionHeader icon={ScrollText} title="采集任务与日志" description={`实时追踪 · 共 ${tasks.length} 条`} />
+              <Button variant="ghost" size="icon-sm" className="shrink-0 text-muted-foreground">
+                {showTaskTable ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+              </Button>
             </div>
-            <Button variant="ghost" size="icon-sm" className="shrink-0 text-muted-foreground">
-              {showTaskTable ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
-            </Button>
-          </div>
-        </CardHeader>
-        {showTaskTable && (
-          <CardContent className="px-0 pt-0">
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="border-border/40 hover:bg-transparent">
-                        <TableHead className="pl-6 font-mono text-[10px] tracking-wider text-muted-foreground uppercase">
-                          Task ID
-                        </TableHead>
-                        <TableHead className="font-mono text-[10px] tracking-wider text-muted-foreground uppercase">
-                          Competitor
-                        </TableHead>
-                        <TableHead className="font-mono text-[10px] tracking-wider text-muted-foreground uppercase">
-                          Source URL
-                        </TableHead>
-                        <TableHead className="font-mono text-[10px] tracking-wider text-muted-foreground uppercase">
-                          Status
-                        </TableHead>
-                        <TableHead className="w-[168px] font-mono text-[10px] tracking-wider text-muted-foreground uppercase">
-                          Progress
-                        </TableHead>
-                        <TableHead className="text-right font-mono text-[10px] tracking-wider text-muted-foreground uppercase">
-                          Docs
-                        </TableHead>
-                        <TableHead className="pr-6 text-right font-mono text-[10px] tracking-wider text-muted-foreground uppercase">
-                          Action
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {tasks.map((t) => {
-                        const meta = STATUS_META[t.status]
-                        const Icon = meta.icon
-                        return (
-                          <TableRow key={t.task_id} className="border-border/40">
-                            <TableCell className="pl-6 font-mono text-[12px] text-foreground/85">
-                              {t.task_id}
-                            </TableCell>
-                            <TableCell className="text-[13px] font-medium">
-                              {t.competitor}
-                            </TableCell>
-                            <TableCell className="max-w-[260px]">
-                              <div className="flex flex-col gap-0.5">
-                                <span className="truncate font-mono text-[11px] text-muted-foreground">
-                                  {t.source_url}
-                                </span>
-                                <span className="font-mono text-[10px] text-primary/70">
-                                  {t.source_type}
-                                </span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge
-                                variant="secondary"
-                                className={cn('gap-1.5 border-0 text-[10px] font-medium', meta.className)}
-                              >
-                                <Icon
+          </CardHeader>
+          {showTaskTable && (
+            <CardContent className="px-0 pt-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-border/40 hover:bg-transparent">
+                      <TableHead className="pl-6 font-mono text-[10px] tracking-wider text-muted-foreground uppercase">Task ID</TableHead>
+                      <TableHead className="font-mono text-[10px] tracking-wider text-muted-foreground uppercase">Competitor</TableHead>
+                      <TableHead className="font-mono text-[10px] tracking-wider text-muted-foreground uppercase">Source URL</TableHead>
+                      <TableHead className="font-mono text-[10px] tracking-wider text-muted-foreground uppercase">Status</TableHead>
+                      <TableHead className="w-[168px] font-mono text-[10px] tracking-wider text-muted-foreground uppercase">Progress</TableHead>
+                      <TableHead className="text-right font-mono text-[10px] tracking-wider text-muted-foreground uppercase">Docs</TableHead>
+                      <TableHead className="pr-6 text-right font-mono text-[10px] tracking-wider text-muted-foreground uppercase">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {tasks.map((t) => {
+                      const meta = STATUS_META[t.status]
+                      const Icon = meta.icon
+                      return (
+                        <TableRow key={t.task_id} className="border-border/40">
+                          <TableCell className="pl-6 font-mono text-[12px] text-foreground/85">{t.task_id}</TableCell>
+                          <TableCell className="text-[13px] font-medium">{t.competitor}</TableCell>
+                          <TableCell className="max-w-[260px]">
+                            <div className="flex flex-col gap-0.5">
+                              <span className="truncate font-mono text-[11px] text-muted-foreground">{t.source_url}</span>
+                              <span className="font-mono text-[10px] text-primary/70">{t.source_type}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="secondary" className={cn('gap-1.5 border-0 text-[10px] font-medium', meta.className)}>
+                              <Icon className={cn('size-3', t.status === 'processing' && 'animate-spin')} />
+                              {meta.label}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <div className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
+                                <div
                                   className={cn(
-                                    'size-3',
-                                    t.status === 'processing' && 'animate-spin',
+                                    'h-full rounded-full transition-[width] duration-500',
+                                    t.status === 'failed' ? 'bg-red-400' : t.status === 'completed' ? 'bg-emerald-400' : 'bg-violet-400',
                                   )}
+                                  style={{ width: `${t.progress_percentage}%` }}
                                 />
-                                {meta.label}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <div className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
-                                  <div
-                                    className={cn(
-                                      'h-full rounded-full transition-[width] duration-500',
-                                      t.status === 'failed'
-                                        ? 'bg-red-400'
-                                        : t.status === 'completed'
-                                          ? 'bg-emerald-400'
-                                          : 'bg-violet-400',
-                                    )}
-                                    style={{ width: `${t.progress_percentage}%` }}
-                                  />
-                                </div>
-                                <span className="w-9 shrink-0 text-right font-mono text-[11px] text-muted-foreground">
-                                  {t.progress_percentage}%
-                                </span>
                               </div>
-                            </TableCell>
-                            <TableCell className="text-right font-mono text-[12px]">
-                              {t.documents_created}
-                            </TableCell>
-                            <TableCell className="pr-6 text-right">
-                              {t.status === 'failed' ? (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="h-7 rounded-full text-[11px]"
-                                  onClick={() => retry(t.task_id)}
-                                >
-                                  <RefreshCw data-icon="inline-start" />
-                                  重试
-                                </Button>
-                              ) : (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-7 text-[11px] text-muted-foreground"
-                                  onClick={() =>
-                                    toast(`日志 · ${t.task_id}`, {
-                                      description: `${t.source_type} → ${t.documents_created} docs · ${t.progress_percentage}%`,
-                                    })
-                                  }
-                                >
-                                  查看日志
-                                </Button>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        )
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            )}
-      </Card>
+                              <span className="w-9 shrink-0 text-right font-mono text-[11px] text-muted-foreground">{t.progress_percentage}%</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-[12px]">{t.documents_created}</TableCell>
+                          <TableCell className="pr-6 text-right">
+                            {t.status === 'failed' ? (
+                              <Button variant="outline" size="sm" className="h-7 rounded-full text-[11px]" onClick={() => retry(t.task_id)}>
+                                <RefreshCw data-icon="inline-start" />重试
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-[11px] text-muted-foreground"
+                                onClick={() =>
+                                  toast(`日志 · ${t.task_id}`, {
+                                    description: `${t.source_type} → ${t.documents_created} docs · ${t.progress_percentage}%`,
+                                  })
+                                }
+                              >
+                                查看日志
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      )
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      </section>
     </div>
   )
 }
@@ -634,26 +607,15 @@ function StatTile({
   }[accent]
 
   return (
-    <Card className="card-shadow stat-accent gap-0 bg-white py-0 transition-shadow hover:card-shadow-hover">
-      <div className="flex items-start gap-3 p-5">
-        <div
-          className={cn(
-            'flex size-9 shrink-0 items-center justify-center rounded-xl ring-1',
-            accentClass,
-          )}
-        >
-          <Icon className="size-4" />
-        </div>
-        <div className="flex min-w-0 flex-col">
-          <span className="text-[11px] text-muted-foreground">{label}</span>
-          <span className="text-2xl leading-tight font-semibold tracking-tight tabular-nums">
-            {value}
-          </span>
-          <span className="truncate font-mono text-[10px] text-muted-foreground/70">
-            {caption}
-          </span>
-        </div>
+    <div className="flex items-center gap-3 rounded-xl bg-white/80 p-4 backdrop-blur-sm ring-1 ring-black/5">
+      <div className={cn('flex size-9 shrink-0 items-center justify-center rounded-xl ring-1', accentClass)}>
+        <Icon className="size-4" />
       </div>
-    </Card>
+      <div className="flex min-w-0 flex-col">
+        <span className="text-[11px] text-muted-foreground">{label}</span>
+        <span className="text-2xl leading-tight font-semibold tracking-tight tabular-nums">{value}</span>
+        <span className="truncate font-mono text-[10px] text-muted-foreground/70">{caption}</span>
+      </div>
+    </div>
   )
 }
