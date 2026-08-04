@@ -1,0 +1,29 @@
+# Environment variables (contains API Keys — NEVER commit)
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# ChromaDB local vector cache
+chroma_db/
+
+# Frontend
+node_modules/
+.next/
+*.tsbuildinfo
+
+# v0 sandbox
+__v0_*
+.snowflake/
+.v0-trash/
+.vercel/
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,250 @@
+{
+    "project": "Competitor Intelligence Agent",
+    "version": "1.0.0",
+    "base_url": "/api/v1",
+    "description": "AI竞品情报分析Agent平台前后端接口契约",
+    "apis": {
+      "competitor": {
+        "create": {
+          "method": "POST",
+          "path": "/competitors",
+          "description": "创建新的竞品对象",
+          "request": {
+            "name": "DeepSeek",
+            "category": "AI Assistant",
+            "official_url": "https://deepseek.com",
+            "description": "AI智能助手"
+          },
+          "response": {
+            "status": "success",
+            "data": {
+              "competitor_id": "cmp_001",
+              "name": "DeepSeek",
+              "created_time": "2026-08-04"
+            }
+          }
+        },
+        "list": {
+          "method": "GET",
+          "path": "/competitors",
+          "description": "获取竞品列表",
+          "response": {
+            "status": "success",
+            "data": [
+              {
+                "competitor_id": "cmp_001",
+                "name": "DeepSeek",
+                "category": "AI Assistant",
+                "latest_update": "2026-08-01",
+                "document_count": 120
+              }
+            ]
+          }
+        }
+      },
+      "data_ingestion": {
+        "crawl": {
+          "method": "POST",
+          "path": "/data/crawl",
+          "description": "抓取竞品网页、更新日志、评论数据",
+          "request": {
+            "competitor_id": "cmp_001",
+            "url": "https://deepseek.com/news",
+            "source_type": "changelog"
+          },
+          "response": {
+            "status": "success",
+            "data": {
+              "task_id": "crawl_001",
+              "crawl_status": "processing",
+              "estimated_time": "30s"
+            }
+          }
+        },
+        "task_status": {
+          "method": "GET",
+          "path": "/data/task/{task_id}",
+          "description": "查询数据抓取状态",
+          "response": {
+            "status": "success",
+            "data": {
+              "task_id": "crawl_001",
+              "status": "completed",
+              "progress_percentage": 100,
+              "documents_created": 35,
+              "error_message": null
+            }
+          }
+        }
+      },
+      "knowledge_base": {
+        "upload_document": {
+          "method": "POST",
+          "path": "/knowledge/documents",
+          "description": "上传文档进入知识库",
+          "request": {
+            "competitor_id": "cmp_001",
+            "file_name": "deepseek_update.md",
+            "document_type": "changelog"
+          },
+          "response": {
+            "status": "success",
+            "data": {
+              "document_id": "doc_001",
+              "status": "indexed"
+            }
+          }
+        },
+        "search": {
+          "method": "POST",
+          "path": "/knowledge/search",
+          "description": "RAG语义检索",
+          "request": {
+            "query": "DeepSeek最近上线了哪些功能",
+            "top_k": 5,
+            "competitor_id": "cmp_001",
+            "domain": "AI Assistant"
+          },
+          "response": {
+            "status": "success",
+            "data": {
+              "results": [
+                {
+                  "chunk_id": "chunk_001",
+                  "content": "DeepSeek新增深度搜索能力",
+                  "source": "官方更新日志",
+                  "similarity_score": 0.93
+                }
+              ]
+            }
+          }
+        }
+      },
+      "rag_chat": {
+        "chat": {
+          "method": "POST",
+          "path": "/chat",
+          "description": "基于知识库进行竞品问答",
+          "request": {
+            "question": "DeepSeek相比豆包优势是什么",
+            "competitor_id": "cmp_001"
+          },
+          "response": {
+            "status": "success",
+            "data": {
+              "answer": "DeepSeek在推理能力方面具有优势",
+              "citations": [
+                {
+                  "chunk_id": "chunk_001",
+                  "source_title": "App Store评论",
+                  "raw_text_snippet": "用户反馈推理能力强"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "swot_agent": {
+        "generate": {
+          "method": "POST",
+          "path": "/swot/generate",
+          "description": "生成竞品SWOT分析报告",
+          "request": {
+            "competitors": ["DeepSeek", "豆包"],
+            "domain": "AI Assistant",
+            "time_range_days": 30
+          },
+          "response": {
+            "status": "success",
+            "data": {
+              "report_id": "report_001",
+              "task_id": "swot_task_001",
+              "swot_matrix": {
+                "strengths": [
+                  {
+                    "point": "模型推理能力强",
+                    "citation": {
+                      "chunk_id": "chunk_001",
+                      "source_title": "App Store 评论",
+                      "raw_text_snippet": "深度推理模式响应速度极快..."
+                    },
+                    "confidence": 0.92
+                  }
+                ],
+                "weaknesses": [
+                  {
+                    "point": "高峰期服务不稳定",
+                    "citation": {
+                      "chunk_id": "chunk_002",
+                      "source_title": "App Store 评论",
+                      "raw_text_snippet": "经常提示网络连接超时..."
+                    },
+                    "confidence": 0.88
+                  }
+                ],
+                "opportunities": [
+                  {
+                    "point": "企业API市场增长",
+                    "citation": {
+                      "chunk_id": "chunk_003",
+                      "source_title": "Changelog",
+                      "raw_text_snippet": "上线深度 API 开放平台..."
+                    },
+                    "confidence": 0.85
+                  }
+                ],
+                "threats": [
+                  {
+                    "point": "大厂竞争压力",
+                    "citation": {
+                      "chunk_id": "chunk_004",
+                      "source_title": "行业报告",
+                      "raw_text_snippet": "巨头降价补贴进行用户争夺..."
+                    },
+                    "confidence": 0.81
+                  }
+                ]
+              },
+              "recommendations": [
+                "加强企业用户服务能力",
+                "优化模型响应速度"
+              ]
+            }
+          }
+        }
+      },
+      "evaluation": {
+        "generate": {
+          "method": "POST",
+          "path": "/evaluation/run",
+          "description": "运行LLM-as-a-Judge质量评估",
+          "request": {
+            "report_id": "report_001"
+          },
+          "response": {
+            "status": "success",
+            "data": {
+              "faithfulness": 0.95,
+              "citation_accuracy": 0.92,
+              "completeness": 0.90,
+              "hallucination_rate": 0.03
+            }
+          }
+        },
+        "history": {
+          "method": "GET",
+          "path": "/evaluation/{report_id}",
+          "description": "查看报告评估结果",
+          "response": {
+            "status": "success",
+            "data": {
+              "faithfulness": 0.95,
+              "citation_accuracy": 0.92,
+              "completeness": 0.90,
+              "hallucination_rate": 0.03
+            }
+          }
+        }
+      }
+    }
+  }
