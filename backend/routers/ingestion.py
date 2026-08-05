@@ -1,15 +1,18 @@
-"""Data ingestion routes — crawl + task status + history (DB-persisted)."""
+"""Data ingestion routes — crawl + task status + history (DB-persisted).
+
+Crawl runs asynchronously: POST returns immediately, frontend polls for status.
+"""
 
 from __future__ import annotations
 
+import asyncio
 import uuid
-from typing import List
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends
 from sqlalchemy.orm import Session
 
 from backend.auth import require_user
-from backend.database import get_db
+from backend.database import SessionLocal, get_db
 from backend.models import CrawlTask, Competitor, User
 from backend.schemas import (
     CrawlRequest,
@@ -26,16 +29,66 @@ from backend.services.vector_store import ingest
 router = APIRouter(prefix="/api/v1")
 
 
+def _run_crawl_sync(task_id: str, user_id: int, competitor_id: str, url: str, source_type: str):
+    """Synchronous crawl logic — runs in a background thread."""
+    db = SessionLocal()
+    try:
+        task = db.query(CrawlTask).filter(CrawlTask.task_id == task_id).first()
+        if not task:
+            return
+
+        comp = db.query(Competitor).filter(
+            Competitor.competitor_id == competitor_id,
+            Competitor.user_id == user_id,
+        ).first()
+
+        # 1. Scrape (Playwright → httpx fallback)
+        text = asyncio.run(fetch(url, timeout=25))
+        text = truncate(text)
+
+        # 2. Ingest into vector store
+        count = ingest(
+            text=text,
+            competitor_id=competitor_id,
+            source_url=url,
+            source_type=source_type,
+        )
+
+        # 3. Update competitor document_count
+        if comp:
+            comp.document_count = (comp.document_count or 0) + count
+
+        # 4. Mark task completed
+        task.status = "completed"
+        task.progress_percentage = 100
+        task.documents_created = count
+        db.commit()
+
+    except ScrapeError as exc:
+        if task:
+            task.status = "failed"
+            task.error_message = str(exc)
+            db.commit()
+    except Exception as exc:
+        if task:
+            task.status = "failed"
+            task.error_message = f"采集异常: {exc}"
+            db.commit()
+    finally:
+        db.close()
+
+
 @router.post("/data/crawl", response_model=CrawlResponse)
-async def trigger_crawl(
+def trigger_crawl(
     body: CrawlRequest,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_user),
 ) -> CrawlResponse:
-    """Scrape a URL → chunk → embed → persist task to DB."""
-    task_id = f"crawl_{uuid.uuid4().hex[:8]}"
+    """Start a crawl — returns immediately, runs scrape in background."""
+    import uuid as _uuid
+    task_id = f"crawl_{_uuid.uuid4().hex[:8]}"
 
-    # Look up competitor name for the log
     comp = db.query(Competitor).filter(
         Competitor.competitor_id == body.competitor_id,
         Competitor.user_id == current_user.id,
@@ -55,38 +108,15 @@ async def trigger_crawl(
     db.add(db_task)
     db.commit()
 
-    try:
-        # 1. Scrape (Playwright → httpx fallback)
-        text = await fetch(body.url, timeout=25)
-        text = truncate(text)
-
-        # 2. Ingest into vector store
-        count = ingest(
-            text=text,
-            competitor_id=body.competitor_id,
-            source_url=body.url,
-            source_type=body.source_type,
-        )
-
-        # 3. Update competitor document_count
-        if comp:
-            comp.document_count = (comp.document_count or 0) + count
-            db.commit()
-
-        # 4. Mark task completed
-        db_task.status = "completed"
-        db_task.progress_percentage = 100
-        db_task.documents_created = count
-        db.commit()
-
-    except ScrapeError as exc:
-        db_task.status = "failed"
-        db_task.error_message = str(exc)
-        db.commit()
-    except Exception as exc:
-        db_task.status = "failed"
-        db_task.error_message = f"采集异常: {exc}"
-        db.commit()
+    # Schedule background work
+    background_tasks.add_task(
+        _run_crawl_sync,
+        task_id=task_id,
+        user_id=current_user.id,
+        competitor_id=body.competitor_id,
+        url=body.url,
+        source_type=body.source_type,
+    )
 
     return CrawlResponse(
         data=CrawlResponseData(
