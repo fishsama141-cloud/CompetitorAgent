@@ -126,6 +126,7 @@ def list_competitors(
                 competitor_id=c.competitor_id,
                 name=c.name,
                 category=c.category,
+                official_url=c.official_url,
                 latest_update=c.latest_update.date() if c.latest_update else date.today(),
                 document_count=c.document_count,
             )

@@ -42,6 +42,7 @@ class CompetitorListItem(BaseModel):
     competitor_id: str
     name: str
     category: str
+    official_url: str
     latest_update: date
     document_count: int
 
