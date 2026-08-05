@@ -93,12 +93,13 @@ class TestIngestion:
     """Group 3: Data ingestion."""
 
     def test_04_trigger_crawl(self, client: TestClient):
+        headers = _register_and_login(client)
         payload = {
             "competitor_id": "cmp_001",
             "url": "https://example.com",
             "source_type": "changelog",
         }
-        resp = client.post(f"{API}/data/crawl", json=payload)
+        resp = client.post(f"{API}/data/crawl", json=payload, headers=headers)
         assert resp.status_code == 200
         parsed = CrawlResponse.model_validate(resp.json())
         assert parsed.status == "success"
@@ -107,7 +108,8 @@ class TestIngestion:
         assert parsed.data.crawl_status in ("processing", "completed", "failed")
 
     def test_05_get_task_status(self, client: TestClient):
-        resp = client.get(f"{API}/data/task/crawl_001")
+        headers = _register_and_login(client)
+        resp = client.get(f"{API}/data/task/crawl_001", headers=headers)
         assert resp.status_code == 200
         parsed = TaskStatusResponse.model_validate(resp.json())
         assert parsed.status == "success"
@@ -242,8 +244,8 @@ class TestContractValidation:
         for method, path, body in self.ALL_ENDPOINTS:
             url = f"{API}{path}"
             kwargs: dict = {}
-            # Competitor endpoints now require auth
-            if path in ("/competitors",):
+            # Endpoints that require auth
+            if path in ("/competitors", "/data/crawl", "/data/tasks") or path.startswith("/data/task/"):
                 kwargs["headers"] = headers
             if method == "GET":
                 resp = client.get(url, **kwargs)

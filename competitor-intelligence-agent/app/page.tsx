@@ -35,7 +35,7 @@ export default function Page() {
       >
         {user ? (
           <>
-            {tab === 'ingestion' && <IngestionView domain={domain} />}
+            {tab === 'ingestion' && <IngestionView domain={domain} onNavigate={setTab} />}
             {tab === 'knowledge' && <KnowledgeView />}
             {tab === 'swot' && <SwotView domain={domain} />}
             {tab === 'evaluation' && <EvaluationView />}

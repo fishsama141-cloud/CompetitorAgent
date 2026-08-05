@@ -72,6 +72,19 @@ class TaskStatusData(BaseModel):
     error_message: str | None = None
 
 
+class CrawlTaskItem(BaseModel):
+    task_id: str
+    competitor_id: str
+    competitor_name: str = ""
+    source_url: str = ""
+    source_type: str = "changelog"
+    status: str
+    progress_percentage: int
+    documents_created: int
+    error_message: str | None = None
+    created_at: str = ""
+
+
 # ============================================================
 # Knowledge Base
 # ============================================================
@@ -217,6 +230,7 @@ class UserMeData(BaseModel):
 CompetitorCreateResponse = ApiResponse[CompetitorCreateData]
 CompetitorListResponse = ApiResponse[List[CompetitorListItem]]
 CrawlResponse = ApiResponse[CrawlResponseData]
+CrawlTaskListResponse = ApiResponse[List[CrawlTaskItem]]
 TaskStatusResponse = ApiResponse[TaskStatusData]
 UploadDocumentResponse = ApiResponse[UploadDocumentData]
 SearchResponse = ApiResponse[SearchResponseData]

@@ -11,7 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { sourceTypes } from '@/lib/mock-data'
 import type { TaskStatusWithMeta as TaskStatus } from '@/lib/types'
-import { startCrawl as startCrawlApi, getTaskStatus } from '@/lib/services/ingestion'
+import { startCrawl as startCrawlApi, getTaskStatus, listCrawlTasks } from '@/lib/services/ingestion'
 import { listCompetitors, createCompetitor } from '@/lib/services/competitor'
 import type { Competitor, CrawlResponse } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
@@ -41,7 +41,7 @@ const STATUS_META: Record<TaskStatus['status'], { label: string; className: stri
 /* ─────────────────────────────────────────────
    Main View
    ───────────────────────────────────────────── */
-export function IngestionView({ domain }: { domain: string }) {
+export function IngestionView({ domain, onNavigate }: { domain: string; onNavigate: (tab: 'ingestion' | 'knowledge' | 'swot' | 'evaluation') => void }) {
   const [competitors, setCompetitors] = useState<Competitor[]>([])
   const [loadingComp, setLoadingComp] = useState(true)
   const [addOpen, setAddOpen] = useState(false)
@@ -62,16 +62,36 @@ export function IngestionView({ domain }: { domain: string }) {
       const data = await listCompetitors()
       setCompetitors(data)
     } catch {
-      // API unavailable — start empty
       setCompetitors([])
     } finally {
       setLoadingComp(false)
     }
   }, [])
 
+  // ── Load crawl history from DB on mount ───────────────────
+  const loadHistory = useCallback(async () => {
+    try {
+      const items = await listCrawlTasks()
+      const mapped: TaskStatus[] = items.map((t) => ({
+        task_id: t.task_id,
+        competitor: t.competitor_name,
+        source_url: t.source_url,
+        source_type: t.source_type as TaskStatus['source_type'],
+        status: t.status as TaskStatus['status'],
+        progress_percentage: t.progress_percentage,
+        documents_created: t.documents_created,
+        error_message: t.error_message,
+      }))
+      setTasks(mapped)
+    } catch {
+      // history unavailable — start empty
+    }
+  }, [])
+
   useEffect(() => {
     refreshCompetitors()
-  }, [refreshCompetitors])
+    loadHistory()
+  }, [refreshCompetitors, loadHistory])
 
   const visibleCompetitors = useMemo(
     () => competitors.filter((c) => c.category === domain || domain === 'AI Assistant'),
@@ -580,8 +600,7 @@ function SheetContent({
                             className="h-6 rounded-full text-[11px] text-primary"
                             onClick={() => {
                               onClose()
-                              // Navigate to knowledge tab via a custom event
-                              window.dispatchEvent(new CustomEvent('nav', { detail: 'knowledge' }))
+                              onNavigate('knowledge')
                             }}
                           >
                             去知识库检索 →

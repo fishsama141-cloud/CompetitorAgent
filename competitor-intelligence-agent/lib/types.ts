@@ -55,6 +55,20 @@ export type TaskStatusWithMeta = TaskStatus & {
   source_type: CrawlRequest['source_type']
 }
 
+// Crawl task history item (from DB)
+export type CrawlTaskItem = {
+  task_id: string
+  competitor_id: string
+  competitor_name: string
+  source_url: string
+  source_type: string
+  status: string
+  progress_percentage: number
+  documents_created: number
+  error_message: string | null
+  created_at: string
+}
+
 // --- Knowledge Base ---
 
 export type UploadDocumentRequest = {
