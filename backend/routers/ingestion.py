@@ -14,7 +14,7 @@ from backend.schemas import (
     TaskStatusData,
     TaskStatusResponse,
 )
-from backend.services.scraper import ScrapeError, fetch
+from backend.services.scraper import ScrapeError, fetch, truncate
 from backend.services.vector_store import ingest
 
 router = APIRouter(prefix="/api/v1")
@@ -35,10 +35,13 @@ async def trigger_crawl(body: CrawlRequest) -> CrawlResponse:
     }
 
     try:
-        # 1. Scrape
+        # 1. Scrape (Playwright → httpx fallback)
         text = await fetch(body.url, timeout=25)
 
-        # 2. Ingest
+        # 2. Truncate to avoid overloading the embedding model
+        text = truncate(text)
+
+        # 3. Ingest into vector store
         count = ingest(
             text=text,
             competitor_id=body.competitor_id,
@@ -79,12 +82,18 @@ async def trigger_crawl(body: CrawlRequest) -> CrawlResponse:
 
 @router.get("/data/task/{task_id}", response_model=TaskStatusResponse)
 def get_task_status(task_id: str) -> TaskStatusResponse:
-    task = _task_store.get(task_id, {
-        "status": "completed",
-        "progress_percentage": 100,
-        "documents_created": 35,
-        "error_message": None,
-    })
+    task = _task_store.get(task_id)
+
+    if task is None:
+        return TaskStatusResponse(
+            data=TaskStatusData(
+                task_id=task_id,
+                status="failed",
+                progress_percentage=0,
+                documents_created=0,
+                error_message="任务记录已过期（后端重启后内存数据丢失），请重新发起采集",
+            )
+        )
 
     return TaskStatusResponse(
         data=TaskStatusData(

@@ -477,7 +477,7 @@ function SheetContent({
             <div className="flex flex-col gap-3 rounded-2xl border border-border/50 bg-muted/20 p-4">
               <div className="flex items-center gap-2 text-[12px]">
                 <Globe className="size-3.5 text-muted-foreground" />
-                <span className="font-mono text-muted-foreground">https://{competitor.name.toLowerCase()}.com/news</span>
+                <span className="font-mono text-muted-foreground truncate">{competitor.official_url || '未设置 URL'}</span>
               </div>
               <div className="flex items-center gap-3">
                 <Select defaultValue="changelog">
@@ -544,8 +544,11 @@ function SheetContent({
                       className="flex flex-col gap-3 rounded-xl border border-border/50 bg-white p-4 transition-shadow hover:shadow-sm"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="font-mono text-[11px] text-muted-foreground">{t.task_id}</span>
-                        <Badge variant="outline" className={cn('gap-1 border text-[10px] font-medium', meta.className)}>
+                        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                          <span className="font-mono text-[11px] text-muted-foreground">{t.task_id}</span>
+                          <span className="truncate text-[11px] text-muted-foreground/70">{t.source_url}</span>
+                        </div>
+                        <Badge variant="outline" className={cn('ml-2 shrink-0 gap-1 border text-[10px] font-medium', meta.className)}>
                           <Icon className={cn('size-3', t.status === 'processing' && 'animate-spin')} />
                           {meta.label}
                         </Badge>
@@ -559,13 +562,38 @@ function SheetContent({
                         </div>
                         <span className="w-10 text-right font-mono text-[11px] tabular-nums text-muted-foreground">{t.progress_percentage}%</span>
                       </div>
+                      {/* Error message for failed tasks */}
+                      {t.status === 'failed' && t.error_message && (
+                        <div className="rounded-lg bg-red-50 px-3 py-2 text-[11px] leading-relaxed text-red-600">
+                          {t.error_message}
+                        </div>
+                      )}
                       <div className="flex items-center justify-between text-[11px]">
                         <span className="flex items-center gap-1 text-muted-foreground">
                           <FileStack className="size-3" />
-                          {t.documents_created} 文档
+                          {t.documents_created} 片段已入库
                         </span>
+                        {t.status === 'completed' && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 rounded-full text-[11px] text-primary"
+                            onClick={() => {
+                              onClose()
+                              // Navigate to knowledge tab via a custom event
+                              window.dispatchEvent(new CustomEvent('nav', { detail: 'knowledge' }))
+                            }}
+                          >
+                            去知识库检索 →
+                          </Button>
+                        )}
                         {t.status === 'failed' && (
-                          <Button variant="ghost" size="sm" className="h-6 rounded-full text-[11px] text-primary">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 rounded-full text-[11px] text-primary"
+                            onClick={(e) => { e.stopPropagation(); onCrawl() }}
+                          >
                             <RefreshCw className="size-3" />重试
                           </Button>
                         )}
