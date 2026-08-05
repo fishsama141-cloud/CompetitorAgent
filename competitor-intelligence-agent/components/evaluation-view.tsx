@@ -40,7 +40,7 @@ export function EvaluationView() {
   async function run() {
     setRunning(true)
     try { await runEvaluationApi({ report_id: reportId }); toast.success('评估完成') }
-    catch { await new Promise((r) => setTimeout(r, 1500)); toast.success('评估完成（模拟）') }
+    catch (err: any) { toast.error('评估失败', { description: err?.message ?? '请先生成 SWOT 报告再运行评估' }) }
     finally { setRunning(false) }
   }
 

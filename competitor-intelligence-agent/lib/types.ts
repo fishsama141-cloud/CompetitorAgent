@@ -60,6 +60,7 @@ export type UploadDocumentRequest = {
   competitor_id: string
   file_name: string
   document_type: 'changelog' | 'app_store' | 'custom_url'
+  content: string
 }
 
 export type UploadDocumentResponse = {

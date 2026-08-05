@@ -13,7 +13,7 @@ import {
   competitors as seedCompetitors, crawlTasks as seedTasks,
   sourceTypes, type TaskStatus,
 } from '@/lib/mock-data'
-import { startCrawl as startCrawlApi } from '@/lib/services/ingestion'
+import { startCrawl as startCrawlApi, getTaskStatus } from '@/lib/services/ingestion'
 import type { CrawlResponse } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -76,23 +76,47 @@ export function IngestionView({ domain }: { domain: string }) {
   async function handleCrawl(targetId: string) {
     if (crawling) return
     const competitor = seedCompetitors.find((c) => c.competitor_id === targetId)?.name ?? 'Unknown'
-    setCrawling(true); setProgress(6)
-    const taskId = `crawl_${String(tasks.length + 1).padStart(3, '0')}`
+    setCrawling(true); setProgress(0)
     try {
-      const result: CrawlResponse = await startCrawlApi({ competitor_id: targetId, url: `https://${competitor.toLowerCase()}.com/news`, source_type: 'changelog' })
-      setTasks((prev) => [{ task_id: result.task_id, competitor, source_url: `https://${competitor.toLowerCase()}.com/news`, source_type: 'changelog', status: 'processing', progress_percentage: 6, documents_created: 0, error_message: null }, ...prev])
-      toast.success(`采集已启动 · ${competitor}`)
-    } catch {
-      setTasks((prev) => [{ task_id: taskId, competitor, source_url: `https://${competitor.toLowerCase()}.com/news`, source_type: 'changelog', status: 'processing', progress_percentage: 6, documents_created: 0, error_message: null }, ...prev])
-    }
-    const timer = setInterval(() => {
-      setProgress((p) => {
-        const next = Math.min(100, p + Math.round(8 + Math.random() * 14))
-        setTasks((prev) => prev.map((t) => t.task_id === (taskId) ? { ...t, progress_percentage: next, documents_created: Math.round((next / 100) * 31), status: next >= 100 ? 'completed' : 'processing' } : t))
-        if (next >= 100) { clearInterval(timer); setCrawling(false); toast.success(`采集完成 · ${competitor}`) }
-        return next
+      const result: CrawlResponse = await startCrawlApi({
+        competitor_id: targetId,
+        url: `https://${competitor.toLowerCase()}.com/news`,
+        source_type: 'changelog',
       })
-    }, 400)
+      const taskId = result.task_id
+      setTasks((prev) => [{
+        task_id: taskId, competitor,
+        source_url: `https://${competitor.toLowerCase()}.com/news`,
+        source_type: 'changelog', status: 'processing' as const,
+        progress_percentage: 10, documents_created: 0, error_message: null,
+      }, ...prev])
+      toast.success(`采集已启动 · ${competitor}`)
+
+      // Poll real task status every 1s
+      const timer = setInterval(async () => {
+        try {
+          const status = await getTaskStatus(taskId)
+          setTasks((prev) => prev.map((t) =>
+            t.task_id === taskId
+              ? { ...t, status: status.status, progress_percentage: status.progress_percentage, documents_created: status.documents_created, error_message: status.error_message }
+              : t
+          ))
+          setProgress(status.progress_percentage)
+          if (status.status === 'completed') {
+            clearInterval(timer); setCrawling(false)
+            toast.success(`采集完成 · ${competitor}`, { description: `已入库 ${status.documents_created} 个片段` })
+          } else if (status.status === 'failed') {
+            clearInterval(timer); setCrawling(false)
+            toast.error(`采集失败 · ${competitor}`, { description: status.error_message ?? '未知错误' })
+          }
+        } catch {
+          // polling error — keep going, the task is still there
+        }
+      }, 1000)
+    } catch (err: any) {
+      toast.error('采集启动失败', { description: err?.message ?? '请确认后端服务已启动且目标 URL 可访问' })
+      setCrawling(false); setProgress(0)
+    }
   }
 
   return (

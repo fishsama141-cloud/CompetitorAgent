@@ -9,7 +9,7 @@ import {
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
-import { initialChat, searchResults as seedResults, competitors, type ChatMessage } from '@/lib/mock-data'
+import { initialChat, competitors, type ChatMessage } from '@/lib/mock-data'
 import { searchKnowledge, chat as chatApi, uploadDocument } from '@/lib/services/knowledge'
 import type { SearchResponse, ChatResponse, SearchResult } from '@/lib/types'
 import { CitationTag } from '@/components/citation-tag'
@@ -61,16 +61,33 @@ export function KnowledgeView() {
     try {
       const res: SearchResponse = await searchKnowledge({ query, top_k: topK, competitor_id: competitorId, domain: competitors.find((c) => c.competitor_id === competitorId)?.category ?? 'AI Assistant' })
       setResults(res.results)
-    } catch { await new Promise((r) => setTimeout(r, 700)); setResults(seedResults.slice(0, topK)) }
+    } catch (err: any) {
+      toast.error('检索失败', { description: err?.message ?? '请确认后端服务已启动且知识库中有数据' })
+      setResults([])
+    }
     finally { setSearching(false) }
   }
 
   function addFiles(list: FileList | null) {
     if (!list?.length) return
-    const next = Array.from(list).map((f) => ({ name: f.name, size: `${Math.max(1, Math.round(f.size / 1024))} KB` }))
+    const fileObjs = Array.from(list)
+    const next = fileObjs.map((f) => ({ name: f.name, size: `${Math.max(1, Math.round(f.size / 1024))} KB` }))
     setFiles((prev) => [...next, ...prev])
-    next.forEach(async (f) => { try { await uploadDocument({ competitor_id: competitorId, file_name: f.name, document_type: 'changelog' }) } catch { /* fallback */ } })
-    toast.success(`已上传 ${next.length} 个文件`, { description: '正在切分并生成向量' })
+
+    fileObjs.forEach(async (file) => {
+      try {
+        const content = await file.text()
+        await uploadDocument({
+          competitor_id: competitorId,
+          file_name: file.name,
+          document_type: 'changelog',
+          content,
+        })
+        toast.success(`已索引：${file.name}`, { description: '文档已切分并写入向量库' })
+      } catch (err: any) {
+        toast.error(`上传失败：${file.name}`, { description: err?.message ?? '未知错误' })
+      }
+    })
   }
 
   async function send() {
@@ -79,9 +96,8 @@ export function KnowledgeView() {
     try {
       const res: ChatResponse = await chatApi({ question: text, competitor_id: competitorId })
       setMessages((prev) => [...prev, { id: `msg_${prev.length + 1}`, role: 'assistant', content: res.answer, citations: res.citations }])
-    } catch {
-      await new Promise((r) => setTimeout(r, 1100))
-      setMessages((prev) => [...prev, { id: `msg_${prev.length + 1}`, role: 'assistant', content: '基于知识库检索，竞品在高峰期的稳定性问题是最可复用的切入点[chunk_002]；同时其开放平台的批量推理定价正在重塑企业侧价格锚点[chunk_003]。', citations: [{ chunk_id: 'chunk_002', source_title: 'App Store', raw_text_snippet: '经常提示网络连接超时。' }, { chunk_id: 'chunk_003', source_title: 'Changelog', raw_text_snippet: '开放平台上线深度 API。' }] }])
+    } catch (err: any) {
+      toast.error('对话请求失败', { description: err?.message ?? '请确认后端服务已启动且 LLM API Key 已配置' })
     } finally { setThinking(false) }
   }
 

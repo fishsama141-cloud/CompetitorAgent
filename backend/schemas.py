@@ -80,6 +80,7 @@ class UploadDocumentRequest(BaseModel):
     competitor_id: str
     file_name: str
     document_type: str  # "changelog" | "app_store_review" | "custom"
+    content: str = ""  # file body (plain text / markdown)
 
 
 class UploadDocumentData(BaseModel):

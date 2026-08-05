@@ -118,13 +118,14 @@ class TestKnowledge:
             "competitor_id": "cmp_001",
             "file_name": "test.md",
             "document_type": "changelog",
+            "content": "# Test Document\n\nThis is a test document for vector indexing.\n",
         }
         resp = client.post(f"{API}/knowledge/documents", json=payload)
         assert resp.status_code == 200
         parsed = UploadDocumentResponse.model_validate(resp.json())
         assert parsed.status == "success"
         assert parsed.data is not None
-        assert parsed.data.document_id
+        assert parsed.data.status in ("indexed", "skipped")
 
 
 class TestSWOT:

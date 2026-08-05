@@ -61,7 +61,7 @@ export function SwotView({ domain }: { domain: string }) {
       const result: SwotGenerateResponse = await generateSwotApi({ competitors: names, domain, time_range_days: days })
       setSwotData(result.swot_matrix); setRecommendations(result.recommendations)
       toast.success('SWOT 报告已生成')
-    } catch { await new Promise((r) => setTimeout(r, 1400)); toast.success('SWOT 报告已生成（模拟）') }
+    } catch (err: any) { toast.error('SWOT 生成失败', { description: err?.message ?? '请确认向量库中有数据且 LLM API Key 已配置' }) }
     finally { setGenerating(false) }
   }
 

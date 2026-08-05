@@ -6,29 +6,28 @@ Real ingestion, knowledge, SWOT, evaluation, and auth routes.
 
 from __future__ import annotations
 
+import uuid
 from contextlib import asynccontextmanager
 from datetime import date
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
 
-from backend.database import Base, engine
+from backend.database import Base, engine, get_db
+from backend.models import Competitor
+from backend.routers.auth import router as auth_router
+from backend.routers.evaluation import router as evaluation_router
+from backend.routers.ingestion import router as ingestion_router
+from backend.routers.knowledge import router as knowledge_router
+from backend.routers.swot import router as swot_router
 from backend.schemas import (
-    ChatRequest,
-    ChatResponse,
-    ChatResponseData,
-    Citation,
     CompetitorCreateData,
     CompetitorCreateRequest,
     CompetitorCreateResponse,
     CompetitorListItem,
     CompetitorListResponse,
 )
-from backend.routers.ingestion import router as ingestion_router
-from backend.routers.knowledge import router as knowledge_router
-from backend.routers.swot import router as swot_router
-from backend.routers.evaluation import router as evaluation_router
-from backend.routers.auth import router as auth_router
 
 
 # ── Lifespan: create tables on startup ────────────────────────
@@ -63,6 +62,7 @@ app.include_router(evaluation_router)
 
 API = "/api/v1"
 
+
 # ============================================================
 # Health
 # ============================================================
@@ -74,46 +74,77 @@ def health() -> dict:
 
 
 # ============================================================
-# Competitor
+# Competitor — DB-backed CRUD
 # ============================================================
 
 
 @app.post(f"{API}/competitors", response_model=CompetitorCreateResponse)
-def create_competitor(body: CompetitorCreateRequest) -> CompetitorCreateResponse:
+def create_competitor(
+    body: CompetitorCreateRequest, db: Session = Depends(get_db)
+) -> CompetitorCreateResponse:
+    """Create a new competitor — persisted to SQLite."""
+    cid = f"cmp_{uuid.uuid4().hex[:8]}"
+    comp = Competitor(
+        competitor_id=cid,
+        name=body.name,
+        category=body.category,
+        official_url=body.official_url,
+        description=body.description,
+    )
+    db.add(comp)
+    db.commit()
+    db.refresh(comp)
     return CompetitorCreateResponse(
         data=CompetitorCreateData(
-            competitor_id="cmp_001",
-            name=body.name,
-            created_time=date.today(),
+            competitor_id=comp.competitor_id,
+            name=comp.name,
+            created_time=comp.created_at.date(),
         )
     )
 
 
 @app.get(f"{API}/competitors", response_model=CompetitorListResponse)
-def list_competitors() -> CompetitorListResponse:
+def list_competitors(db: Session = Depends(get_db)) -> CompetitorListResponse:
+    """List all competitors from SQLite. Seeds defaults on first access."""
+    comps = db.query(Competitor).order_by(Competitor.created_at.desc()).all()
+
+    if not comps:
+        seeds = [
+            Competitor(
+                competitor_id="cmp_001", name="DeepSeek",
+                category="AI Assistant", official_url="https://deepseek.com",
+                description="AI 智能助手", document_count=0,
+            ),
+            Competitor(
+                competitor_id="cmp_002", name="豆包",
+                category="AI Assistant", official_url="https://www.doubao.com",
+                description="字节跳动 AI 助手", document_count=0,
+            ),
+            Competitor(
+                competitor_id="cmp_003", name="Kimi",
+                category="AI Assistant", official_url="https://kimi.moonshot.cn",
+                description="月之暗面 AI 助手", document_count=0,
+            ),
+            Competitor(
+                competitor_id="cmp_004", name="Perplexity",
+                category="Search", official_url="https://perplexity.ai",
+                description="AI 搜索引擎", document_count=0,
+            ),
+        ]
+        for s in seeds:
+            db.add(s)
+        db.commit()
+        comps = seeds
+
     return CompetitorListResponse(
         data=[
-            CompetitorListItem(competitor_id="cmp_001", name="DeepSeek", category="AI Assistant", latest_update=date(2026, 8, 1), document_count=120),
-            CompetitorListItem(competitor_id="cmp_002", name="豆包", category="AI Assistant", latest_update=date(2026, 7, 28), document_count=98),
-            CompetitorListItem(competitor_id="cmp_003", name="Kimi", category="AI Assistant", latest_update=date(2026, 8, 2), document_count=55),
-            CompetitorListItem(competitor_id="cmp_004", name="Perplexity", category="Search", latest_update=date(2026, 7, 15), document_count=38),
+            CompetitorListItem(
+                competitor_id=c.competitor_id,
+                name=c.name,
+                category=c.category,
+                latest_update=c.latest_update.date() if c.latest_update else date.today(),
+                document_count=c.document_count,
+            )
+            for c in comps
         ]
-    )
-
-
-# ============================================================
-# RAG Chat
-# ============================================================
-
-
-@app.post(f"{API}/chat", response_model=ChatResponse)
-def rag_chat(body: ChatRequest) -> ChatResponse:
-    return ChatResponse(
-        data=ChatResponseData(
-            answer="DeepSeek在推理能力方面具有显著优势，尤其是在复杂多轮对话与代码解释器功能上。相比之下，豆包在语音交互和用户体验方面更具特色。建议根据产品定位选择差异化切入点。",
-            citations=[
-                Citation(chunk_id="chunk_001", source_title="App Store评论", raw_text_snippet="用户反馈推理能力强"),
-                Citation(chunk_id="chunk_002", source_title="Changelog", raw_text_snippet="上线代码解释器功能"),
-            ],
-        )
     )
