@@ -1,28 +1,41 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   BadgeCheck, CircleSlash, FlaskConical, Gavel, History, Quote,
-  ShieldCheck, Sparkles, XCircle, Loader2, ChevronRight,
+  ShieldCheck, Sparkles, XCircle, Loader2, ChevronRight, Info,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
-import { evaluationHistory, evaluations } from '@/lib/mock-data'
-import type { EvaluationRun } from '@/lib/types'
+import type { Evaluations, Competitor, EvaluationRun } from '@/lib/types'
 import { runEvaluation as runEvaluationApi } from '@/lib/services/evaluation'
+import { listCompetitors } from '@/lib/services/competitor'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Spinner } from '@/components/ui/spinner'
 import { useReveal } from '@/hooks/use-reveal'
 
-const METRICS = [
-  { key: 'faithfulness', label: '忠实度', en: 'Faithfulness', value: evaluations.faithfulness, icon: ShieldCheck, tone: 'emerald' as const, hint: '回答内容是否严格基于检索片段' },
-  { key: 'citation', label: '引用准确率', en: 'Citation Accuracy', value: evaluations.citation_accuracy, icon: Quote, tone: 'sky' as const, hint: '引用标签与原文片段的匹配程度' },
-  { key: 'completeness', label: '完整度', en: 'Completeness', value: evaluations.completeness, icon: BadgeCheck, tone: 'sky' as const, hint: '是否覆盖问题涉及的全部关键维度' },
-  { key: 'hallucination', label: '幻觉率', en: 'Hallucination Rate', value: evaluations.hallucination_rate, icon: CircleSlash, tone: 'emerald' as const, hint: '越低越好 · 当前处于优秀区间', inverted: true },
-]
+// Formula docs for display
+const FORMULA_DOCS: Record<string, { zh: string; formula: string }> = {
+  faithfulness: {
+    zh: '忠实度：每个SWOT分析点与其引用原文片段的语义相似度均值',
+    formula: '1/N · Σ cosine_sim(embed(point), embed(raw_text_snippet))',
+  },
+  citation_accuracy: {
+    zh: '引用准确率：chunk_id在向量库中真实存在的比例',
+    formula: 'verified_chunk_ids / total_chunk_ids',
+  },
+  completeness: {
+    zh: '完整度：四象限覆盖度评分',
+    formula: 'min(avg(items_per_quadrant) / 3, 1.0)',
+  },
+  hallucination_rate: {
+    zh: '幻觉率：分析点与原文相似度低于0.5阈值的比例',
+    formula: 'count(similarity < 0.5) / total_points',
+  },
+}
 
 const TONE_MAP: Record<string, { text: string; ring: string; bg: string; stroke: string }> = {
   emerald: { text: 'text-emerald-600', ring: 'ring-emerald-200', bg: 'bg-emerald-50', stroke: '#34c759' },
@@ -30,16 +43,34 @@ const TONE_MAP: Record<string, { text: string; ring: string; bg: string; stroke:
 }
 
 export function EvaluationView() {
-  const [reportId, setReportId] = useState('rpt_20260801_swot')
+  const [competitors, setCompetitors] = useState<Competitor[]>([])
+  const [reportId, setReportId] = useState('')
   const [running, setRunning] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
+  // Start with null — no mock data
+  const [scores, setScores] = useState<Evaluations | null>(null)
+  const [history, setHistory] = useState<{ report_id: string; scores: Evaluations; evaluated_at: string }[]>([])
 
   const heroRef = useReveal()
   const gaugesRef = useReveal()
 
+  useEffect(() => {
+    listCompetitors().then(setCompetitors).catch(() => setCompetitors([]))
+  }, [])
+
   async function run() {
+    if (!reportId) return
     setRunning(true)
-    try { await runEvaluationApi({ report_id: reportId }); toast.success('评估完成') }
+    try {
+      const result = await runEvaluationApi({ report_id: reportId })
+      setScores(result)
+      setHistory((prev) => [{
+        report_id: reportId,
+        scores: result,
+        evaluated_at: new Date().toISOString().replace('T', ' ').slice(0, 19),
+      }, ...prev])
+      toast.success('评估完成', { description: '已运行确定性公式 + LLM 裁判双重评估' })
+    }
     catch (err: any) { toast.error('评估失败', { description: err?.message ?? '请先生成 SWOT 报告再运行评估' }) }
     finally { setRunning(false) }
   }
@@ -62,26 +93,21 @@ export function EvaluationView() {
         <h1 className="max-w-2xl text-[40px] font-bold leading-[1.05] tracking-[-0.02em] lg:text-[56px]">
           质量评估，
           <br />
-          <span className="text-primary">LLM-as-a-Judge 裁判模型。</span>
+          <span className="text-primary">确定性公式 + LLM 双重裁判。</span>
         </h1>
         <p className="max-w-lg text-[17px] leading-relaxed text-muted-foreground">
-          对 SWOT 报告运行忠实度、引用准确率、完整度与幻觉率四维检测，确保每一份分析报告都可信赖。
+          对 SWOT 报告运行四维检测：忠实度（语义相似度）、引用准确率（chunk_id 验证）、完整度（四象限覆盖）、幻觉率（低相似度比例）。每项得分由确定性公式与 LLM 裁判取平均。
         </p>
         <div className="flex items-center gap-3">
-          <Select value={reportId} onValueChange={(v) => setReportId(v as string)}>
-            <SelectTrigger className="h-12 w-[240px] rounded-2xl font-mono text-[13px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {evaluationHistory.map((h) => (
-                  <SelectItem key={h.report_id} value={h.report_id} className="font-mono text-[12px]">
-                    {h.report_id}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+          <div className="flex flex-1 items-center gap-3 max-w-md">
+            <input
+              type="text"
+              value={reportId}
+              onChange={(e) => setReportId(e.target.value)}
+              placeholder="输入 SWOT 报告 ID（如 rpt_xxx）"
+              className="h-12 flex-1 rounded-2xl border border-border/60 bg-muted/30 px-4 text-[13px] font-mono text-foreground placeholder:text-muted-foreground/50 outline-none transition-[border-color,box-shadow] focus:border-primary/40 focus:ring-4 focus:ring-primary/5"
+            />
+          </div>
           <Button
             size="lg"
             className="btn-press rounded-full px-8 text-[15px]"
@@ -104,7 +130,7 @@ export function EvaluationView() {
       </motion.section>
 
       {/* ================================================================
-          GAUGE CARDS — clean ring charts
+          GAUGE CARDS — clean ring charts with formula disclosure
           ================================================================ */}
       <section ref={gaugesRef} className="py-8 lg:py-12">
         <div className="mb-8">
@@ -114,16 +140,39 @@ export function EvaluationView() {
           <h2 className="mt-1 text-2xl font-bold tracking-[-0.01em]">评估指标</h2>
         </div>
 
+        {!scores ? (
+          <div className="flex flex-col items-center gap-3 rounded-3xl border border-dashed border-border/50 bg-muted/10 py-20 text-center">
+            <FlaskConical className="size-10 text-muted-foreground/25" />
+            <p className="text-[14px] text-muted-foreground">尚未运行评估</p>
+            <p className="text-[12px] text-muted-foreground/60 max-w-md">
+              输入 SWOT 报告 ID，点击"运行评估"按钮。系统将运行确定性公式（语义相似度验证 + chunk_id 存在性检查）与 LLM 裁判双重评估。
+            </p>
+          </div>
+        ) : (
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-          {METRICS.map((m, i) => (
-            <GaugeCard key={m.key} metric={m} index={i} />
-          ))}
+          {([
+            { key: 'faithfulness', label: '忠实度', en: 'Faithfulness', value: scores.faithfulness, icon: ShieldCheck, tone: 'emerald' as const, inverted: false },
+            { key: 'citation_accuracy', label: '引用准确率', en: 'Citation Accuracy', value: scores.citation_accuracy, icon: Quote, tone: 'sky' as const, inverted: false },
+            { key: 'completeness', label: '完整度', en: 'Completeness', value: scores.completeness, icon: BadgeCheck, tone: 'sky' as const, inverted: false },
+            { key: 'hallucination_rate', label: '幻觉率', en: 'Hallucination Rate', value: scores.hallucination_rate, icon: CircleSlash, tone: 'emerald' as const, inverted: true },
+          ]).map((m, i) => {
+            const doc = FORMULA_DOCS[m.key]
+            return (
+              <GaugeCard
+                key={m.key}
+                metric={{ ...m, hint: doc.zh, formula: doc.formula }}
+                index={i}
+              />
+            )
+          })}
         </div>
+        )}
       </section>
 
       {/* ================================================================
-          QUALITY GATE BANNER
+          QUALITY GATE BANNER — only shown when scores exist
           ================================================================ */}
+      {scores && (
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
@@ -132,12 +181,18 @@ export function EvaluationView() {
       >
         <Sparkles className="size-4 shrink-0 text-primary" />
         <p className="min-w-0 flex-1 text-[13px] leading-relaxed text-muted-foreground">
-          当前报告的忠实度与引用准确率均高于 0.90 阈值，幻觉率 0.03 处于优秀区间。
+          评分方式：每项指标由<strong>确定性公式</strong>（语义相似度、chunk_id 存在性验证）与 <strong>LLM 裁判</strong>（DeepSeek）取平均值得出。展开下方指标卡片可查看公式详情。
         </p>
-        <Badge variant="secondary" className="border-0 bg-emerald-50 text-[11px] font-medium text-emerald-700">
-          质量门禁通过
+        <Badge variant="secondary" className={cn(
+          'border-0 text-[11px] font-medium',
+          scores.hallucination_rate <= 0.08 && scores.faithfulness >= 0.85
+            ? 'bg-emerald-50 text-emerald-700'
+            : 'bg-amber-50 text-amber-700',
+        )}>
+          {scores.hallucination_rate <= 0.08 && scores.faithfulness >= 0.85 ? '质量门禁通过' : '需人工复核'}
         </Badge>
       </motion.div>
+      )}
 
       {/* ================================================================
           HISTORY SHEET
@@ -155,7 +210,7 @@ export function EvaluationView() {
                   </div>
                   <div>
                     <h2 className="text-[16px] font-semibold">评估历史</h2>
-                    <p className="font-mono text-[11px] text-muted-foreground">{evaluationHistory.length} 条记录</p>
+                    <p className="font-mono text-[11px] text-muted-foreground">{history.length} 条记录</p>
                   </div>
                 </div>
                 <Button variant="ghost" size="icon-sm" className="text-muted-foreground" onClick={() => setHistoryOpen(false)}>
@@ -166,8 +221,8 @@ export function EvaluationView() {
               {/* Body */}
               <div className="flex-1 overflow-y-auto px-6 py-5">
                 <div className="flex flex-col gap-3">
-                  {evaluationHistory.map((h, i) => (
-                    <HistoryRow key={h.report_id} item={h} index={i} isActive={h.report_id === reportId} />
+                  {history.map((h, i) => (
+                    <HistoryRow key={h.report_id} item={{ ...h, status: 'passed' as const }} index={i} isActive={h.report_id === reportId} />
                   ))}
                 </div>
               </div>
@@ -182,10 +237,14 @@ export function EvaluationView() {
 /* ─────────────────────────────────────────────
    Gauge Card — SVG ring
    ───────────────────────────────────────────── */
-function GaugeCard({ metric, index }: { metric: (typeof METRICS)[number]; index: number }) {
+function GaugeCard({ metric, index }: {
+  metric: { key: string; label: string; en: string; value: number; icon: any; tone: 'emerald' | 'sky'; inverted: boolean; hint: string; formula?: string }
+  index: number
+}) {
   const tone = TONE_MAP[metric.tone]; const Icon = metric.icon
   const fill = metric.inverted ? 1 - metric.value : metric.value
   const r = 30; const c = 2 * Math.PI * r
+  const [showFormula, setShowFormula] = useState(false)
 
   return (
     <motion.div
@@ -204,6 +263,13 @@ function GaugeCard({ metric, index }: { metric: (typeof METRICS)[number]; index:
             <span className="text-[13px] font-semibold tracking-[-0.01em]">{metric.label}</span>
             <span className="font-mono text-[10px] text-muted-foreground">{metric.en}</span>
           </div>
+          <button
+            onClick={(e) => { e.stopPropagation(); setShowFormula(!showFormula) }}
+            className="ml-auto rounded-lg p-1 text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+            title="查看计算公式"
+          >
+            <Info className="size-3.5" />
+          </button>
         </div>
 
         {/* Ring chart */}
@@ -230,7 +296,7 @@ function GaugeCard({ metric, index }: { metric: (typeof METRICS)[number]; index:
           </div>
           <div className="flex min-w-0 flex-1 flex-col gap-2">
             <Badge variant="secondary" className={cn('w-fit border-0 text-[10px] font-medium', tone.bg, tone.text)}>
-              {metric.inverted ? '低幻觉' : fill >= 0.9 ? '优秀' : '良好'}
+              {metric.inverted ? (metric.value <= 0.05 ? '优秀' : '需关注') : fill >= 0.9 ? '优秀' : fill >= 0.7 ? '良好' : '需改进'}
             </Badge>
             <p className="text-[12px] leading-relaxed text-muted-foreground">{metric.hint}</p>
           </div>
@@ -243,6 +309,23 @@ function GaugeCard({ metric, index }: { metric: (typeof METRICS)[number]; index:
             style={{ width: `${fill * 100}%`, background: tone.stroke }}
           />
         </div>
+
+        {/* Formula disclosure */}
+        <AnimatePresence>
+          {showFormula && metric.formula && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="mt-1 rounded-xl border border-border/50 bg-muted/20 p-3">
+                <span className="font-mono text-[10px] text-muted-foreground uppercase tracking-wider">计算公式</span>
+                <code className="mt-1 block text-[11px] leading-relaxed text-foreground/70">{metric.formula}</code>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </motion.div>
   )

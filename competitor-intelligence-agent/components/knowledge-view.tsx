@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   CloudUpload, FileText, MessageSquare, Search,
   SendHorizontal, Sparkles, Trash2, XCircle,
@@ -9,12 +9,14 @@ import {
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
-import { initialChat, competitors, type ChatMessage } from '@/lib/mock-data'
+import type { ChatMessage, Competitor } from '@/lib/types'
 import { searchKnowledge, chat as chatApi, uploadDocument } from '@/lib/services/knowledge'
+import { listCompetitors } from '@/lib/services/competitor'
 import type { SearchResponse, ChatResponse, SearchResult } from '@/lib/types'
 import { CitationTag } from '@/components/citation-tag'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
 import { Spinner } from '@/components/ui/spinner'
 import { useReveal } from '@/hooks/use-reveal'
@@ -23,32 +25,45 @@ import { useReveal } from '@/hooks/use-reveal'
    Main View
    ───────────────────────────────────────────── */
 export function KnowledgeView() {
+  const [competitors, setCompetitors] = useState<Competitor[]>([])
   const [query, setQuery] = useState('')
   const [topK, setTopK] = useState(5)
   const [searching, setSearching] = useState(false)
   const [results, setResults] = useState<SearchResult[]>([])
   const [searched, setSearched] = useState(false)
 
-  // Upload
-  const [files, setFiles] = useState<{ name: string; size: string }[]>([
-    { name: 'deepseek-changelog-2026-07.md', size: '48 KB' },
-    { name: 'appstore-reviews-doubao.txt', size: '132 KB' },
-  ])
+  // Upload — starts empty (no fake default files)
+  const [files, setFiles] = useState<{ name: string; size: string }[]>([])
   const [uploadOpen, setUploadOpen] = useState(false)
   const [dragging, setDragging] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Chat sheet
+  // Chat sheet — starts empty (no fake default messages)
   const [chatOpen, setChatOpen] = useState(false)
-  const [messages, setMessages] = useState<ChatMessage[]>(initialChat)
+  const [messages, setMessages] = useState<ChatMessage[]>([])
   const [draft, setDraft] = useState('')
   const [thinking, setThinking] = useState(false)
 
   // Detail sheet
   const [selectedChunk, setSelectedChunk] = useState<SearchResult | null>(null)
 
-  const [competitorId, setCompetitorId] = useState('cmp_001')
+  const [competitorId, setCompetitorId] = useState('')
   const heroRef = useReveal()
+
+  // ── Load competitors from API ──────────────────────────────
+  useEffect(() => {
+    listCompetitors().then((data) => {
+      setCompetitors(data)
+      if (data.length > 0 && !competitorId) {
+        setCompetitorId(data[0].competitor_id)
+      }
+    }).catch(() => {})
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const selectedCategory = useMemo(
+    () => competitors.find((c) => c.competitor_id === competitorId)?.category ?? 'AI Assistant',
+    [competitors, competitorId],
+  )
 
   const avgScore = useMemo(
     () => results.length ? results.reduce((s, r) => s + r.similarity_score, 0) / results.length : 0,
@@ -56,10 +71,10 @@ export function KnowledgeView() {
   )
 
   async function runSearch() {
-    if (!query.trim()) return
+    if (!query.trim() || !competitorId) return
     setSearching(true); setSearched(true)
     try {
-      const res: SearchResponse = await searchKnowledge({ query, top_k: topK, competitor_id: competitorId, domain: competitors.find((c) => c.competitor_id === competitorId)?.category ?? 'AI Assistant' })
+      const res: SearchResponse = await searchKnowledge({ query, top_k: topK, competitor_id: competitorId, domain: selectedCategory })
       setResults(res.results)
     } catch (err: any) {
       toast.error('检索失败', { description: err?.message ?? '请确认后端服务已启动且知识库中有数据' })
@@ -204,6 +219,113 @@ export function KnowledgeView() {
           )}
         </section>
       )}
+
+      {/* ================================================================
+          RAG CHAT — prominent AI agent on main page
+          ================================================================ */}
+      <section className="py-8 lg:py-12">
+        <div className="mb-8 flex items-end justify-between">
+          <div>
+            <span className="font-mono text-[10px] font-medium tracking-[0.2em] text-muted-foreground/60 uppercase">
+              RAG Agent
+            </span>
+            <h2 className="mt-1 text-2xl font-bold tracking-[-0.01em]">竞品情报智能问答</h2>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="font-mono text-[10px] text-muted-foreground">知识库上下文</span>
+            <Select value={competitorId} onValueChange={(v) => setCompetitorId(v ?? '')}>
+              <SelectTrigger className="h-8 w-[150px] text-[12px]">
+                <SelectValue placeholder="选择竞品" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {competitors.map((c) => (
+                    <SelectItem key={c.competitor_id} value={c.competitor_id}>{c.name}</SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Chat messages */}
+        <div className="mb-4 max-h-[420px] overflow-y-auto rounded-3xl border border-border/50 bg-white p-6 ring-1 ring-black/5">
+          {messages.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 py-12 text-center">
+              <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/20">
+                <Sparkles className="size-6 text-primary" />
+              </div>
+              <p className="text-[14px] font-medium text-foreground/70">向 AI 智能体提问</p>
+              <p className="text-[12px] text-muted-foreground/60 max-w-sm">
+                智能体将基于知识库中的竞品情报数据回答你的问题，回答附带原文引用来源。
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4">
+              {messages.map((m, i) => (
+                <motion.div
+                  key={m.id}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.03 }}
+                  className={cn('flex gap-3', m.role === 'user' ? 'justify-end' : 'justify-start')}
+                >
+                  {m.role === 'assistant' && (
+                    <div className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/20">
+                      <Sparkles className="size-3.5 text-primary" />
+                    </div>
+                  )}
+                  <div className={cn(
+                    'max-w-[80%] rounded-2xl px-4 py-3 text-[13px] leading-relaxed',
+                    m.role === 'user'
+                      ? 'rounded-br-md bg-foreground text-white'
+                      : 'rounded-bl-md border border-border/50 bg-muted/20',
+                  )}>
+                    {m.role === 'assistant' ? <ChatText message={m} /> : m.content}
+                  </div>
+                </motion.div>
+              ))}
+              {thinking && (
+                <div className="flex items-center gap-3">
+                  <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/20">
+                    <Sparkles className="size-3.5 animate-pulse text-primary" />
+                  </div>
+                  <span className="flex items-center gap-2 text-[12px] text-muted-foreground">
+                    <Spinner className="size-3.5" />正在检索知识库…
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Chat input */}
+        <div className="flex items-end gap-3">
+          <textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault(); send()
+              }
+            }}
+            placeholder="向情报智能体提问，例如：DeepSeek 最近更新了哪些功能？与竞品相比有什么优势？"
+            className="min-h-[60px] flex-1 resize-none rounded-2xl border border-border/60 bg-muted/30 px-4 py-3 text-[14px] text-foreground placeholder:text-muted-foreground/50 outline-none transition-[border-color,box-shadow] focus:border-primary/40 focus:ring-4 focus:ring-primary/5"
+            rows={2}
+          />
+          <Button
+            size="icon"
+            className="btn-press size-12 shrink-0 rounded-2xl"
+            onClick={send}
+            disabled={thinking || !draft.trim() || !competitorId}
+          >
+            <SendHorizontal className="size-5" />
+          </Button>
+        </div>
+        <p className="mt-2 font-mono text-[10px] text-muted-foreground/60">
+          Enter 发送 · Shift + Enter 换行 · 基于向量检索的 RAG 智能问答（需要知识库中有数据）
+        </p>
+      </section>
 
       {/* ================================================================
           UPLOAD SHEET

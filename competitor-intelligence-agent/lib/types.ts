@@ -8,6 +8,7 @@ export type Competitor = {
   competitor_id: string
   name: string
   category: string
+  official_url: string
   latest_update: string
   document_count: number
 }
@@ -145,6 +146,7 @@ export type Evaluations = {
   citation_accuracy: number
   completeness: number
   hallucination_rate: number
+  formulas?: Record<string, string>
 }
 
 // Extended for UI display (history table)

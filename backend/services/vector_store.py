@@ -114,18 +114,25 @@ def search(
     competitor_id: str,
     top_k: int = 5,
 ) -> List[dict]:
-    """Embed query → ChromaDB cosine search → list of {chunk_id, content, source, similarity_score}."""
+    """Embed query → ChromaDB cosine search → list of {chunk_id, content, source, similarity_score}.
+
+    When competitor_id is empty string, searches across ALL competitors.
+    """
     model = _get_embedder()
     collection = _get_chroma()
 
     q_embedding = model.encode([query], normalize_embeddings=True).tolist()[0]
 
-    results = collection.query(
-        query_embeddings=[q_embedding],
-        n_results=top_k,
-        where={"competitor_id": competitor_id},
-        include=["documents", "metadatas", "distances"],
-    )
+    kwargs: dict = {
+        "query_embeddings": [q_embedding],
+        "n_results": top_k,
+        "include": ["documents", "metadatas", "distances"],
+    }
+    # Only filter by competitor_id when one is explicitly provided
+    if competitor_id:
+        kwargs["where"] = {"competitor_id": competitor_id}
+
+    results = collection.query(**kwargs)
 
     ids_list = results.get("ids", [[]])[0]
     docs_list = results.get("documents", [[]])[0]

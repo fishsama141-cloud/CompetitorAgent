@@ -79,10 +79,13 @@ def generate(competitor_names: List[str], domain: str, time_range_days: int = 30
     3. Call DeepSeek JSON mode → Pydantic validate
     """
 
-    # 1. Retrieve context
+    # 1. Retrieve context — search across ALL competitors (no hardcoded ID)
     all_chunks: List[dict] = []
     for name in competitor_names:
-        chunks = search(query=f"{name} {domain}", competitor_id="cmp_001", top_k=8)
+        # Search without competitor_id filter to get chunks from any competitor
+        # that match the query. The vector store's `where` clause is dropped when
+        # competitor_id is empty string.
+        chunks = search(query=f"{name} {domain}", competitor_id="", top_k=8)
         all_chunks.extend(chunks)
 
     seen = set()

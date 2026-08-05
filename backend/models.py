@@ -28,6 +28,7 @@ class Competitor(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     competitor_id: Mapped[str] = mapped_column(String(32), unique=True, nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True, default=0)
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     category: Mapped[str] = mapped_column(String(64), nullable=False)
     official_url: Mapped[str] = mapped_column(String(512), nullable=False)

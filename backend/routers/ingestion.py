@@ -14,7 +14,7 @@ from backend.schemas import (
     TaskStatusData,
     TaskStatusResponse,
 )
-from backend.services.scraper import fetch
+from backend.services.scraper import ScrapeError, fetch
 from backend.services.vector_store import ingest
 
 router = APIRouter(prefix="/api/v1")
@@ -53,12 +53,19 @@ async def trigger_crawl(body: CrawlRequest) -> CrawlResponse:
             "error_message": None,
         }
 
-    except Exception as exc:
+    except ScrapeError as exc:
         _task_store[task_id] = {
             "status": "failed",
             "progress_percentage": 0,
             "documents_created": 0,
             "error_message": str(exc),
+        }
+    except Exception as exc:
+        _task_store[task_id] = {
+            "status": "failed",
+            "progress_percentage": 0,
+            "documents_created": 0,
+            "error_message": f"采集异常: {exc}",
         }
 
     return CrawlResponse(

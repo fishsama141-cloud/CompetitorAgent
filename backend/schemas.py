@@ -172,6 +172,14 @@ class EvaluationData(BaseModel):
     citation_accuracy: float
     completeness: float
     hallucination_rate: float
+    # Formula documentation for transparency
+    formulas: dict = {
+        "faithfulness": "avg(cosine_similarity(embed(point), embed(raw_text_snippet))) — 每个SWOT分析点与其引用原文片段的语义相似度均值",
+        "citation_accuracy": "verified_chunk_ids / total_chunk_ids — 引用的chunk_id在向量库中真实存在的比例",
+        "completeness": "min(avg(items_per_quadrant) / 3, 1.0) — 四象限覆盖完整度，目标每象限≥3条",
+        "hallucination_rate": "count(similarity < 0.5) / total_points — 分析点与原文相似度低于0.5阈值的比例",
+        "scoring": "最终得分 = (确定性公式得分 + LLM裁判得分) / 2，两者取平均；若某一方不可用则使用另一方的值",
+    }
 
 
 # ============================================================

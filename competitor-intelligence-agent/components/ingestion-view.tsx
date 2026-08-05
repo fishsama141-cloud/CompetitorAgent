@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   CheckCircle2, FileStack, Globe,
   Loader2, Play, RefreshCw, XCircle, Plus,
@@ -9,12 +9,11 @@ import {
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
-import {
-  competitors as seedCompetitors, crawlTasks as seedTasks,
-  sourceTypes, type TaskStatus,
-} from '@/lib/mock-data'
+import { sourceTypes } from '@/lib/mock-data'
+import type { TaskStatusWithMeta as TaskStatus } from '@/lib/types'
 import { startCrawl as startCrawlApi, getTaskStatus } from '@/lib/services/ingestion'
-import type { CrawlResponse } from '@/lib/types'
+import { listCompetitors, createCompetitor } from '@/lib/services/competitor'
+import type { Competitor, CrawlResponse } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -43,23 +42,45 @@ const STATUS_META: Record<TaskStatus['status'], { label: string; className: stri
    Main View
    ───────────────────────────────────────────── */
 export function IngestionView({ domain }: { domain: string }) {
+  const [competitors, setCompetitors] = useState<Competitor[]>([])
+  const [loadingComp, setLoadingComp] = useState(true)
   const [addOpen, setAddOpen] = useState(false)
   const [newName, setNewName] = useState('')
   const [newUrl, setNewUrl] = useState('')
+  const [newCategory, setNewCategory] = useState('AI Assistant')
+  const [newDesc, setNewDesc] = useState('')
+  const [adding, setAdding] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [tasks, setTasks] = useState<TaskStatus[]>(seedTasks)
+  const [tasks, setTasks] = useState<TaskStatus[]>([])
   const [crawling, setCrawling] = useState(false)
   const [progress, setProgress] = useState(0)
   const heroRef = useReveal()
 
+  // ── Fetch real competitors from the backend ────────────────
+  const refreshCompetitors = useCallback(async () => {
+    try {
+      const data = await listCompetitors()
+      setCompetitors(data)
+    } catch {
+      // API unavailable — start empty
+      setCompetitors([])
+    } finally {
+      setLoadingComp(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    refreshCompetitors()
+  }, [refreshCompetitors])
+
   const visibleCompetitors = useMemo(
-    () => seedCompetitors.filter((c) => c.category === domain || domain === 'AI Assistant'),
-    [domain],
+    () => competitors.filter((c) => c.category === domain || domain === 'AI Assistant'),
+    [competitors, domain],
   )
 
   const selected = useMemo(
-    () => seedCompetitors.find((c) => c.competitor_id === selectedId),
-    [selectedId],
+    () => competitors.find((c) => c.competitor_id === selectedId),
+    [competitors, selectedId],
   )
 
   const selectedTasks = useMemo(
@@ -67,30 +88,46 @@ export function IngestionView({ domain }: { domain: string }) {
     [tasks, selected],
   )
 
-  function handleAdd() {
-    if (!newName.trim()) return
-    toast.success(`竞品「${newName.trim()}」已加入监控列表`)
-    setNewName(''); setNewUrl(''); setAddOpen(false)
+  async function handleAdd() {
+    if (!newName.trim() || !newUrl.trim()) return
+    setAdding(true)
+    try {
+      await createCompetitor({
+        name: newName.trim(),
+        category: newCategory,
+        official_url: newUrl.trim(),
+        description: newDesc.trim() || newName.trim(),
+      })
+      toast.success(`竞品「${newName.trim()}」已加入监控列表`)
+      setNewName(''); setNewUrl(''); setNewDesc(''); setAddOpen(false)
+      await refreshCompetitors()
+    } catch (err: any) {
+      toast.error('添加失败', { description: err?.message ?? '请确认后端服务已启动' })
+    } finally {
+      setAdding(false)
+    }
   }
 
   async function handleCrawl(targetId: string) {
     if (crawling) return
-    const competitor = seedCompetitors.find((c) => c.competitor_id === targetId)?.name ?? 'Unknown'
+    const comp = competitors.find((c) => c.competitor_id === targetId)
+    if (!comp) return
+    const url = comp.official_url
     setCrawling(true); setProgress(0)
     try {
       const result: CrawlResponse = await startCrawlApi({
         competitor_id: targetId,
-        url: `https://${competitor.toLowerCase()}.com/news`,
+        url,
         source_type: 'changelog',
       })
       const taskId = result.task_id
       setTasks((prev) => [{
-        task_id: taskId, competitor,
-        source_url: `https://${competitor.toLowerCase()}.com/news`,
-        source_type: 'changelog', status: 'processing' as const,
+        task_id: taskId, competitor: comp.name,
+        source_url: url,
+        source_type: 'changelog' as const, status: 'processing' as const,
         progress_percentage: 10, documents_created: 0, error_message: null,
       }, ...prev])
-      toast.success(`采集已启动 · ${competitor}`)
+      toast.success(`采集已启动 · ${comp.name}`)
 
       // Poll real task status every 1s
       const timer = setInterval(async () => {
@@ -104,13 +141,14 @@ export function IngestionView({ domain }: { domain: string }) {
           setProgress(status.progress_percentage)
           if (status.status === 'completed') {
             clearInterval(timer); setCrawling(false)
-            toast.success(`采集完成 · ${competitor}`, { description: `已入库 ${status.documents_created} 个片段` })
+            toast.success(`采集完成 · ${comp.name}`, { description: `已入库 ${status.documents_created} 个片段` })
+            await refreshCompetitors()
           } else if (status.status === 'failed') {
             clearInterval(timer); setCrawling(false)
-            toast.error(`采集失败 · ${competitor}`, { description: status.error_message ?? '未知错误' })
+            toast.error(`采集失败 · ${comp.name}`, { description: status.error_message ?? '未知错误' })
           }
         } catch {
-          // polling error — keep going, the task is still there
+          // polling error — keep going
         }
       }, 1000)
     } catch (err: any) {
@@ -140,7 +178,11 @@ export function IngestionView({ domain }: { domain: string }) {
           <span className="text-primary">一键向量化入库。</span>
         </h1>
         <p className="max-w-lg text-[17px] leading-relaxed text-muted-foreground">
-          选择目标竞品，配置采集来源，自动将非结构化数据转化为可检索的知识片段。
+          {loadingComp
+            ? '正在加载监控列表…'
+            : competitors.length === 0
+              ? '你还没有添加任何竞品。点击下方按钮添加第一个监控目标，开始采集竞品情报数据。'
+              : '选择目标竞品，配置采集来源，自动将非结构化数据转化为可检索的知识片段。'}
         </p>
         <Button
           size="lg"
@@ -220,7 +262,7 @@ export function IngestionView({ domain }: { domain: string }) {
       </AnimatePresence>
 
       {/* ================================================================
-          ADD DIALOG
+          ADD DIALOG — real API call
           ================================================================ */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent className="sm:max-w-md">
@@ -232,7 +274,7 @@ export function IngestionView({ domain }: { domain: string }) {
           </DialogHeader>
           <div className="flex flex-col gap-4 pt-2">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="add-name" className="text-[12px]">竞品名称</Label>
+              <Label htmlFor="add-name" className="text-[12px]">竞品名称 <span className="text-red-400">*</span></Label>
               <Input
                 id="add-name"
                 placeholder="例如：DeepSeek"
@@ -242,13 +284,24 @@ export function IngestionView({ domain }: { domain: string }) {
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="add-url" className="text-[12px]">官方地址 <span className="text-muted-foreground">(选填)</span></Label>
+              <Label htmlFor="add-url" className="text-[12px]">官方地址 <span className="text-red-400">*</span></Label>
               <Input id="add-url" placeholder="https://..." value={newUrl} onChange={(e) => setNewUrl(e.target.value)} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="add-category" className="text-[12px]">分类</Label>
+              <Input id="add-category" placeholder="AI Assistant" value={newCategory} onChange={(e) => setNewCategory(e.target.value)} />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="add-desc" className="text-[12px]">简介 <span className="text-muted-foreground">(选填)</span></Label>
+              <Input id="add-desc" placeholder="一句话描述该竞品" value={newDesc} onChange={(e) => setNewDesc(e.target.value)} />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddOpen(false)}>取消</Button>
-            <Button onClick={handleAdd} disabled={!newName.trim()}>确认添加</Button>
+            <Button onClick={handleAdd} disabled={!newName.trim() || !newUrl.trim() || adding}>
+              {adding ? <Loader2 className="size-4 animate-spin" /> : null}
+              {adding ? '添加中…' : '确认添加'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -267,7 +320,7 @@ function CompetitorCard({
   onCrawl,
   crawling,
 }: {
-  competitor: (typeof seedCompetitors)[0]
+  competitor: Competitor
   index: number
   isSelected: boolean
   onSelect: () => void
@@ -380,7 +433,7 @@ function SheetContent({
   crawling,
   progress,
 }: {
-  competitor: (typeof seedCompetitors)[0]
+  competitor: Competitor
   tasks: TaskStatus[]
   onClose: () => void
   onCrawl: () => void

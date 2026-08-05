@@ -1,16 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   AlertTriangle, Check, ChevronDown, ChevronUp, Copy,
   Lightbulb, Settings2, Shield, Sparkles, Swords, TrendingUp, Zap,
-  XCircle, Loader2,
+  XCircle, Loader2, Info,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
-import { competitors, recommendations as mockRecommendations, swotMatrix as mockSwotMatrix, type SwotItem } from '@/lib/mock-data'
+import type { Competitor, SwotItem, SwotMatrix } from '@/lib/types'
 import { generateSwot as generateSwotApi } from '@/lib/services/swot'
+import { listCompetitors } from '@/lib/services/competitor'
 import type { SwotGenerateResponse } from '@/lib/types'
 import { CitationTag } from '@/components/citation-tag'
 import { Badge } from '@/components/ui/badge'
@@ -35,12 +36,14 @@ const TONE: Record<string, { chip: string; bar: string; iconBg: string }> = {
 }
 
 export function SwotView({ domain }: { domain: string }) {
-  const [targets, setTargets] = useState<string[]>(['cmp_001', 'cmp_002'])
+  const [competitors, setCompetitors] = useState<Competitor[]>([])
+  const [targets, setTargets] = useState<string[]>([])
   const [days, setDays] = useState(30)
   const [generating, setGenerating] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [swotData, setSwotData] = useState(mockSwotMatrix)
-  const [recommendations, setRecommendations] = useState(mockRecommendations.map((r) => r.detail))
+  // Start with EMPTY matrix (no mock data)
+  const [swotData, setSwotData] = useState<SwotMatrix | null>(null)
+  const [recommendations, setRecommendations] = useState<string[]>([])
   const [showRecs, setShowRecs] = useState(true)
 
   // Config sheet
@@ -50,11 +53,17 @@ export function SwotView({ domain }: { domain: string }) {
   const matrixRef = useReveal()
   const recsRef = useReveal()
 
+  // ── Load competitors from API ──────────────────────────────
+  useEffect(() => {
+    listCompetitors().then(setCompetitors).catch(() => setCompetitors([]))
+  }, [])
+
   const label = targets.length === 0
     ? '未选择目标'
     : targets.map((id) => competitors.find((c) => c.competitor_id === id)?.name ?? id).join(' vs ')
 
   async function generate() {
+    if (!targets.length) return
     setGenerating(true)
     try {
       const names = targets.map((id) => competitors.find((c) => c.competitor_id === id)?.name).filter(Boolean) as string[]
@@ -132,6 +141,15 @@ export function SwotView({ domain }: { domain: string }) {
           <h2 className="mt-1 text-2xl font-bold tracking-[-0.01em]">竞争态势矩阵</h2>
         </div>
 
+        {!swotData ? (
+          <div className="flex flex-col items-center gap-3 rounded-3xl border border-dashed border-border/50 bg-muted/10 py-20 text-center">
+            <Zap className="size-10 text-muted-foreground/25" />
+            <p className="text-[14px] text-muted-foreground">尚未生成 SWOT 报告</p>
+            <p className="text-[12px] text-muted-foreground/60 max-w-md">
+              选择对比目标与时间窗口后，点击"生成 SWOT 报告"按钮。智能体将基于知识库中的竞品情报自动分析。
+            </p>
+          </div>
+        ) : (
         <div className="grid gap-5 lg:grid-cols-2">
           {QUADRANTS.map((q) => {
             const tone = TONE[q.tone]; const Icon = q.icon; const items = swotData[q.key]
@@ -172,12 +190,21 @@ export function SwotView({ domain }: { domain: string }) {
             )
           })}
         </div>
+        )}
       </section>
 
       {/* ================================================================
           RECOMMENDATIONS — expandable
           ================================================================ */}
+      {swotData && (
       <section ref={recsRef} className="py-8 lg:py-12">
+        {/* Source disclosure for strategic recommendations */}
+        <div className="mb-4 flex items-start gap-2 rounded-2xl border border-sky-200 bg-sky-50/50 p-3 text-[12px] text-sky-700">
+          <Info className="size-4 shrink-0 mt-0.5" />
+          <span>
+            <strong>战略建议来源说明：</strong>战略建议由 DeepSeek LLM 基于知识库中的竞品情报数据自动生成，并非联网搜索或人工撰写。每条 SWOT 分析点均附带原文引用（chunk_id + 片段），可追溯至原始文档。
+          </span>
+        </div>
         <div
           className="mb-8 flex cursor-pointer items-end justify-between"
           onClick={() => setShowRecs(!showRecs)}
@@ -235,6 +262,7 @@ export function SwotView({ domain }: { domain: string }) {
           )}
         </AnimatePresence>
       </section>
+      )}
 
       {/* ================================================================
           CONFIG SHEET

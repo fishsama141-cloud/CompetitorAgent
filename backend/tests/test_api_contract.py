@@ -22,6 +22,22 @@ from backend.schemas import (
 API = "/api/v1"
 
 
+# ── Auth helpers ──────────────────────────────────────────────
+
+def _register_and_login(client: TestClient) -> dict:
+    """Register a test user, login, return auth headers."""
+    client.post(f"{API}/auth/register", json={
+        "username": "testuser_contract",
+        "password": "testpass123",
+    })
+    resp = client.post(f"{API}/auth/login", json={
+        "username": "testuser_contract",
+        "password": "testpass123",
+    })
+    token = resp.json()["data"]["access_token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
 class TestHealth:
     """Group 1: Health check."""
 
@@ -37,13 +53,14 @@ class TestCompetitor:
     """Group 2: Competitor CRUD."""
 
     def test_02_create_competitor(self, client: TestClient):
+        headers = _register_and_login(client)
         payload = {
             "name": "DeepSeek",
             "category": "AI Assistant",
             "official_url": "https://deepseek.com",
             "description": "AI 助手",
         }
-        resp = client.post(f"{API}/competitors", json=payload)
+        resp = client.post(f"{API}/competitors", json=payload, headers=headers)
         assert resp.status_code == 200
         # Contract validation via Pydantic
         parsed = CompetitorCreateResponse.model_validate(resp.json())
@@ -52,7 +69,15 @@ class TestCompetitor:
         assert parsed.data.competitor_id
 
     def test_03_list_competitors(self, client: TestClient):
-        resp = client.get(f"{API}/competitors")
+        headers = _register_and_login(client)
+        # Create one first so list is not empty
+        client.post(f"{API}/competitors", json={
+            "name": "DeepSeek",
+            "category": "AI Assistant",
+            "official_url": "https://deepseek.com",
+            "description": "AI 助手",
+        }, headers=headers)
+        resp = client.get(f"{API}/competitors", headers=headers)
         assert resp.status_code == 200
         parsed = CompetitorListResponse.model_validate(resp.json())
         assert parsed.status == "success"
@@ -213,12 +238,17 @@ class TestContractValidation:
 
     def test_12_all_endpoints_contract_compliant(self, client: TestClient):
         """Every endpoint returns {status, data, error_message} envelope."""
+        headers = _register_and_login(client)
         for method, path, body in self.ALL_ENDPOINTS:
             url = f"{API}{path}"
+            kwargs: dict = {}
+            # Competitor endpoints now require auth
+            if path in ("/competitors",):
+                kwargs["headers"] = headers
             if method == "GET":
-                resp = client.get(url)
+                resp = client.get(url, **kwargs)
             else:
-                resp = client.post(url, json=body)
+                resp = client.post(url, json=body, **kwargs)
 
             assert resp.status_code == 200, f"{method} {url} → {resp.status_code}"
             data = resp.json()
