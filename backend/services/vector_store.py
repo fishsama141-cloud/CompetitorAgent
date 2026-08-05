@@ -1,20 +1,30 @@
 """ChromaDB vector store — chunk, embed, index & search.
 
-Uses local sentence-transformers (BAAI/bge-small-zh-v1.5) for embeddings.
-No API key required — runs entirely offline.
+Uses local sentence-transformers for embeddings.
+HF mirror must be configured BEFORE import — set HF_ENDPOINT in .env.
 """
 
 from __future__ import annotations
 
+import os
 import uuid
 from typing import List
 
-import chromadb
-import os
-
-from sentence_transformers import SentenceTransformer
-
+# ═══ CRITICAL: set HF mirror BEFORE importing sentence_transformers ═══
 from backend.config import settings
+
+if settings.hf_endpoint:
+    os.environ["HF_ENDPOINT"] = settings.hf_endpoint
+    # Also configure huggingface_hub directly for robustness
+    try:
+        import huggingface_hub
+        huggingface_hub.configure_http_backend(endpoint=settings.hf_endpoint + "/")
+    except Exception:
+        pass
+# ═════════════════════════════════════════════════════════════════════
+
+import chromadb
+from sentence_transformers import SentenceTransformer
 
 # ── Singletons ──────────────────────────────────────────────
 _chroma_client: chromadb.PersistentClient | None = None
@@ -41,9 +51,6 @@ def _get_chroma() -> chromadb.Collection:
 def _get_embedder() -> SentenceTransformer:
     global _embed_model
     if _embed_model is None:
-        # Use HF mirror for faster downloads in China
-        if settings.hf_endpoint:
-            os.environ["HF_ENDPOINT"] = settings.hf_endpoint
         _embed_model = SentenceTransformer(EMBED_MODEL_NAME)
     return _embed_model
 
