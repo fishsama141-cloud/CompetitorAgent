@@ -145,14 +145,21 @@ export function IngestionView({ domain }: { domain: string }) {
             await refreshCompetitors()
           } else if (status.status === 'failed') {
             clearInterval(timer); setCrawling(false)
-            toast.error(`采集失败 · ${comp.name}`, { description: status.error_message ?? '未知错误' })
+            const msg =
+              typeof status.error_message === 'string'
+                ? status.error_message
+                : status.error_message
+                  ? JSON.stringify(status.error_message)
+                  : '未知错误'
+            toast.error(`采集失败 · ${comp.name}`, { description: msg })
           }
         } catch {
           // polling error — keep going
         }
       }, 1000)
     } catch (err: any) {
-      toast.error('采集启动失败', { description: err?.message ?? '请确认后端服务已启动且目标 URL 可访问' })
+      const msg = typeof err?.message === 'string' ? err.message : (err ? String(err) : '请确认后端服务已启动且目标 URL 可访问')
+      toast.error('采集启动失败', { description: msg })
       setCrawling(false); setProgress(0)
     }
   }
