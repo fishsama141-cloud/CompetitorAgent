@@ -10,6 +10,8 @@ import {
   type ReactNode,
 } from 'react'
 
+import apiClient from '@/lib/api-client'
+
 // ── Types ────────────────────────────────────────────────────
 
 interface User {
@@ -26,7 +28,6 @@ interface AuthState {
   logout: () => void
 }
 
-const API = 'http://localhost:8000/api/v1'
 const TOKEN_KEY = 'competitor_agent_token'
 
 // ── Context ───────────────────────────────────────────────────
@@ -69,16 +70,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    fetch(`${API}/auth/me`, {
-      headers: { Authorization: `Bearer ${stored}` },
-    })
+    apiClient
+      .get('/auth/me', { headers: { Authorization: `Bearer ${stored}` } })
       .then((res) => {
-        if (!res.ok) throw new Error('token expired')
-        return res.json()
-      })
-      .then((data) => {
-        if (data.status === 'success' && data.data) {
-          setUser({ id: data.data.id, username: data.data.username })
+        const body = res.data
+        if (body && body.id && body.username) {
+          setUser({ id: body.id, username: body.username })
           setToken(stored)
         } else {
           clearToken()
@@ -89,35 +86,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const login = useCallback(async (username: string, password: string) => {
-    const res = await fetch(`${API}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
-    })
-    const json = await res.json()
-    if (!res.ok) throw new Error(json.detail ?? '登录失败')
-    if (json.status !== 'success' || !json.data?.access_token) {
-      throw new Error('登录响应异常')
-    }
-    saveToken(json.data.access_token)
-    setToken(json.data.access_token)
-    setUser({ id: 0, username: json.data.username }) // id filled by /me on next load
+    const res = await apiClient.post('/auth/login', { username, password })
+    const body = res.data
+    if (!body?.access_token) throw new Error('登录响应异常')
+    saveToken(body.access_token)
+    setToken(body.access_token)
+    setUser({ id: 0, username: body.username })
   }, [])
 
   const register = useCallback(async (username: string, password: string) => {
-    const res = await fetch(`${API}/auth/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
-    })
-    const json = await res.json()
-    if (!res.ok) throw new Error(json.detail ?? '注册失败')
-    if (json.status !== 'success' || !json.data?.access_token) {
-      throw new Error('注册响应异常')
-    }
-    saveToken(json.data.access_token)
-    setToken(json.data.access_token)
-    setUser({ id: 0, username: json.data.username })
+    const res = await apiClient.post('/auth/register', { username, password })
+    const body = res.data
+    if (!body?.access_token) throw new Error('注册响应异常')
+    saveToken(body.access_token)
+    setToken(body.access_token)
+    setUser({ id: 0, username: body.username })
   }, [])
 
   const logout = useCallback(() => {

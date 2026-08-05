@@ -8,10 +8,23 @@ import axios from 'axios'
  * - Automatically unwraps the `{ status, data, error_message }` envelope
  */
 
+const BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? ''
+
 const apiClient = axios.create({
-  baseURL: '/api/v1',
+  baseURL: `${BASE}/api/v1`,
   timeout: 30_000,
   headers: { 'Content-Type': 'application/json' },
+})
+
+// --- Request interceptor: attach JWT token ---
+apiClient.interceptors.request.use((config) => {
+  if (typeof window !== 'undefined') {
+    const token = localStorage.getItem('competitor_agent_token')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
+  }
+  return config
 })
 
 // --- Response interceptor: unwrap the API envelope ---
