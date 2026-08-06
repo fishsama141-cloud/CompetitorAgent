@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  CheckCircle2, FileStack, FileText, Globe,
+  CheckCircle2, Download, FileStack, FileText, Globe,
   Loader2, Play, RefreshCw, XCircle, Plus,
   ChevronRight, History, Settings2, Activity,
 } from 'lucide-react'
@@ -11,7 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
 import { sourceTypes } from '@/lib/mock-data'
 import type { TaskStatusWithMeta as TaskStatus } from '@/lib/types'
-import { startCrawl as startCrawlApi, getTaskStatus, listCrawlTasks } from '@/lib/services/ingestion'
+import { startCrawl as startCrawlApi, getTaskStatus, listCrawlTasks, exportTaskDocx } from '@/lib/services/ingestion'
 import { listCompetitors, createCompetitor } from '@/lib/services/competitor'
 import type { Competitor, CrawlResponse } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
@@ -473,6 +473,21 @@ function SheetContent({
 }) {
   const [previewOpen, setPreviewOpen] = useState(false)
   const [previewText, setPreviewText] = useState('')
+  const [previewTaskId, setPreviewTaskId] = useState('')
+  const [exporting, setExporting] = useState(false)
+
+  async function handleExport() {
+    if (!previewTaskId || exporting) return
+    setExporting(true)
+    try {
+      const filename = `${competitor.name}_采集内容_${previewTaskId}.docx`
+      await exportTaskDocx(previewTaskId, filename)
+    } catch (err: any) {
+      toast.error('导出失败', { description: err?.message ?? '请稍后重试' })
+    } finally {
+      setExporting(false)
+    }
+  }
 
   return (
     <>
@@ -609,6 +624,7 @@ function SheetContent({
                                 className="h-6 rounded-full text-[11px] text-muted-foreground hover:text-foreground"
                                 onClick={() => {
                                   setPreviewText(t.content_preview ?? '')
+                                  setPreviewTaskId(t.task_id)
                                   setPreviewOpen(true)
                                 }}
                               >
@@ -665,6 +681,18 @@ function SheetContent({
               {previewText}
             </pre>
           </div>
+          <DialogFooter className="mt-4">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2"
+              onClick={handleExport}
+              disabled={exporting}
+            >
+              {exporting ? <Loader2 className="size-3.5 animate-spin" /> : <Download className="size-3.5" />}
+              导出 Word
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

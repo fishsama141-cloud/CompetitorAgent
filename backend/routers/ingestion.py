@@ -6,9 +6,11 @@ Crawl runs asynchronously: POST returns immediately, frontend polls for status.
 from __future__ import annotations
 
 import asyncio
+import io
 import uuid
 
 from fastapi import APIRouter, BackgroundTasks, Depends
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from backend.auth import require_user
@@ -197,4 +199,84 @@ def list_crawl_tasks(
             )
             for t in tasks
         ]
+    )
+
+
+@router.get("/data/task/{task_id}/export")
+def export_task_docx(
+    task_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_user),
+):
+    """Export a completed task's scraped content as a .docx file."""
+    task = db.query(CrawlTask).filter(
+        CrawlTask.task_id == task_id,
+        CrawlTask.user_id == current_user.id,
+    ).first()
+
+    if task is None:
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=404,
+            content={"status": "error", "error_message": "任务记录不存在"},
+        )
+
+    if not task.content_preview:
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=400,
+            content={"status": "error", "error_message": "该任务没有可供导出的内容"},
+        )
+
+    # Build .docx in memory
+    from docx import Document
+    from docx.shared import Pt, Inches, Cm
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    import datetime
+
+    doc = Document()
+
+    # ---- Styles ----
+    style = doc.styles["Normal"]
+    style.font.name = "Microsoft YaHei"
+    style.font.size = Pt(10.5)
+    style.paragraph_format.space_after = Pt(6)
+    style.paragraph_format.line_spacing = 1.5
+
+    # ---- Title ----
+    title = doc.add_heading(f"采集内容 · {task.competitor_name}", level=1)
+    title.alignment = WD_ALIGN_PARAGRAPH.LEFT
+
+    # ---- Meta info ----
+    meta = doc.add_paragraph()
+    meta.style = doc.styles["Normal"]
+    meta_run = meta.add_run(
+        f"来源: {task.source_url}\n"
+        f"采集时间: {task.created_at.strftime('%Y-%m-%d %H:%M:%S') if task.created_at else '—'}\n"
+        f"入库片段数: {task.documents_created}\n"
+    )
+    meta_run.font.size = Pt(9)
+    meta_run.font.color.rgb = None
+
+    doc.add_paragraph()  # spacer
+
+    # ---- Content body ----
+    for paragraph_text in task.content_preview.split("\n"):
+        p = doc.add_paragraph()
+        p.style = doc.styles["Normal"]
+        if paragraph_text.strip():
+            p.add_run(paragraph_text.strip())
+
+    # ---- Write to buffer ----
+    buf = io.BytesIO()
+    doc.save(buf)
+    buf.seek(0)
+
+    safe_name = task.competitor_name.replace(" ", "_").replace("/", "_")
+    filename = f"{safe_name}_采集内容_{task.created_at.strftime('%Y%m%d') if task.created_at else 'export'}.docx"
+
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

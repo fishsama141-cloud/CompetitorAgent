@@ -15,3 +15,17 @@ export async function listCrawlTasks(): Promise<CrawlTaskItem[]> {
   const { data } = await apiClient.get<CrawlTaskItem[]>('/data/tasks')
   return data
 }
+
+export async function exportTaskDocx(taskId: string, filename: string): Promise<void> {
+  const resp = await apiClient.get(`/data/task/${taskId}/export`, {
+    responseType: 'blob',
+  })
+  const url = window.URL.createObjectURL(new Blob([resp.data]))
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  window.URL.revokeObjectURL(url)
+}
