@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
-  CheckCircle2, FileStack, Globe,
+  CheckCircle2, FileStack, FileText, Globe,
   Loader2, Play, RefreshCw, XCircle, Plus,
   ChevronRight, History, Settings2, Activity,
 } from 'lucide-react'
@@ -81,6 +81,7 @@ export function IngestionView({ domain, onNavigate }: { domain: string; onNaviga
         progress_percentage: t.progress_percentage,
         documents_created: t.documents_created,
         error_message: t.error_message,
+        content_preview: t.content_preview,
       }))
       setTasks(mapped)
     } catch {
@@ -145,7 +146,7 @@ export function IngestionView({ domain, onNavigate }: { domain: string; onNaviga
         task_id: taskId, competitor: comp.name,
         source_url: url,
         source_type: 'changelog' as const, status: 'processing' as const,
-        progress_percentage: 10, documents_created: 0, error_message: null,
+        progress_percentage: 10, documents_created: 0, error_message: null, content_preview: null,
       }, ...prev])
       toast.success(`采集已启动 · ${comp.name}`)
 
@@ -155,7 +156,7 @@ export function IngestionView({ domain, onNavigate }: { domain: string; onNaviga
           const status = await getTaskStatus(taskId)
           setTasks((prev) => prev.map((t) =>
             t.task_id === taskId
-              ? { ...t, status: status.status, progress_percentage: status.progress_percentage, documents_created: status.documents_created, error_message: status.error_message }
+              ? { ...t, status: status.status, progress_percentage: status.progress_percentage, documents_created: status.documents_created, error_message: status.error_message, content_preview: status.content_preview }
               : t
           ))
           setProgress(status.progress_percentage)
@@ -470,6 +471,9 @@ function SheetContent({
   progress: number
   onNavigate: (tab: 'ingestion' | 'knowledge' | 'swot' | 'evaluation') => void
 }) {
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [previewText, setPreviewText] = useState('')
+
   return (
     <>
       {/* Sheet header */}
@@ -597,17 +601,32 @@ function SheetContent({
                           {t.documents_created} 片段已入库
                         </span>
                         {t.status === 'completed' && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 rounded-full text-[11px] text-primary"
-                            onClick={() => {
-                              onClose()
-                              onNavigate('knowledge')
-                            }}
-                          >
-                            去知识库检索 →
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            {t.content_preview && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-6 rounded-full text-[11px] text-muted-foreground hover:text-foreground"
+                                onClick={() => {
+                                  setPreviewText(t.content_preview ?? '')
+                                  setPreviewOpen(true)
+                                }}
+                              >
+                                <FileText className="size-3" />查看内容
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 rounded-full text-[11px] text-primary"
+                              onClick={() => {
+                                onClose()
+                                onNavigate('knowledge')
+                              }}
+                            >
+                              去知识库检索 →
+                            </Button>
+                          </div>
                         )}
                         {t.status === 'failed' && (
                           <Button
@@ -628,6 +647,26 @@ function SheetContent({
           </div>
         </div>
       </div>
+
+      {/* Content Preview Dialog */}
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-h-[70vh] max-w-2xl overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <FileText className="size-4" />
+              采集内容预览
+            </DialogTitle>
+            <DialogDescription className="text-[11px]">
+              {competitor.name} · 已入库向量片段，以下为原始文本前 {previewText.length} 字符
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-3 max-h-[50vh] overflow-y-auto rounded-xl border bg-muted/30 p-5">
+            <pre className="whitespace-pre-wrap font-sans text-[13px] leading-relaxed text-foreground/85">
+              {previewText}
+            </pre>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

@@ -70,6 +70,7 @@ class TaskStatusData(BaseModel):
     progress_percentage: int
     documents_created: int
     error_message: str | None = None
+    content_preview: str | None = None
 
 
 class CrawlTaskItem(BaseModel):
@@ -82,6 +83,7 @@ class CrawlTaskItem(BaseModel):
     progress_percentage: int
     documents_created: int
     error_message: str | None = None
+    content_preview: str | None = None
     created_at: str = ""
 
 

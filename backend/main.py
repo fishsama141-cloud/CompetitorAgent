@@ -35,6 +35,13 @@ from backend.schemas import (
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    # Auto-migrate: add content_preview column if missing (added 2026-08-06)
+    import sqlalchemy as sa
+    with engine.connect() as conn:
+        cols = [row[1] for row in conn.execute(sa.text("PRAGMA table_info('crawl_tasks')")).fetchall()]
+        if 'content_preview' not in cols:
+            conn.execute(sa.text("ALTER TABLE crawl_tasks ADD COLUMN content_preview VARCHAR(3000)"))
+            conn.commit()
     yield
 
 

@@ -60,6 +60,7 @@ class CrawlTask(Base):
     progress_percentage: Mapped[int] = mapped_column(Integer, default=0)
     documents_created: Mapped[int] = mapped_column(Integer, default=0)
     error_message: Mapped[str | None] = mapped_column(String(2048), nullable=True)
+    content_preview: Mapped[str | None] = mapped_column(String(3000), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),

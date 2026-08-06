@@ -46,7 +46,10 @@ def _run_crawl_sync(task_id: str, user_id: int, competitor_id: str, url: str, so
         text = asyncio.run(fetch(url, timeout=25))
         text = truncate(text)
 
-        # 2. Ingest into vector store
+        # 2. Save content preview (first 3000 chars for UI display)
+        preview = text[:3000]
+
+        # 3. Ingest into vector store
         count = ingest(
             text=text,
             competitor_id=competitor_id,
@@ -58,10 +61,11 @@ def _run_crawl_sync(task_id: str, user_id: int, competitor_id: str, url: str, so
         if comp:
             comp.document_count = (comp.document_count or 0) + count
 
-        # 4. Mark task completed
+        # 5. Mark task completed
         task.status = "completed"
         task.progress_percentage = 100
         task.documents_created = count
+        task.content_preview = preview
         db.commit()
 
     except ScrapeError as exc:
@@ -157,6 +161,7 @@ def get_task_status(
             progress_percentage=task.progress_percentage,
             documents_created=task.documents_created,
             error_message=task.error_message,
+            content_preview=task.content_preview,
         )
     )
 
@@ -187,6 +192,7 @@ def list_crawl_tasks(
                 progress_percentage=t.progress_percentage,
                 documents_created=t.documents_created,
                 error_message=t.error_message,
+                content_preview=t.content_preview,
                 created_at=t.created_at.isoformat() if t.created_at else "",
             )
             for t in tasks

@@ -46,6 +46,7 @@ export type TaskStatus = {
   progress_percentage: number
   documents_created: number
   error_message: string | null
+  content_preview: string | null
 }
 
 // Extended task for UI display (includes crawl request context)
@@ -66,6 +67,7 @@ export type CrawlTaskItem = {
   progress_percentage: number
   documents_created: number
   error_message: string | null
+  content_preview: string | null
   created_at: string
 }
 
