@@ -282,6 +282,7 @@ export function IngestionView({ domain, onNavigate }: { domain: string; onNaviga
                 onCrawl={() => handleCrawl(selected.competitor_id!)}
                 crawling={crawling}
                 progress={progress}
+                onNavigate={onNavigate}
               />
             </motion.div>
           </>
@@ -459,6 +460,7 @@ function SheetContent({
   onCrawl,
   crawling,
   progress,
+  onNavigate,
 }: {
   competitor: Competitor
   tasks: TaskStatus[]
@@ -466,6 +468,7 @@ function SheetContent({
   onCrawl: () => void
   crawling: boolean
   progress: number
+  onNavigate: (tab: 'ingestion' | 'knowledge' | 'swot' | 'evaluation') => void
 }) {
   return (
     <>
