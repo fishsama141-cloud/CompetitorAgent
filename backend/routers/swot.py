@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from backend.auth import require_user
+from backend.models import User
 from backend.schemas import SWOTGenerateRequest, SWOTGenerateResponse
 from backend.services.swot_agent import generate
 
@@ -14,7 +16,10 @@ from backend.routers.evaluation import _store as eval_store
 
 
 @router.post("/swot/generate", response_model=SWOTGenerateResponse)
-def generate_swot(body: SWOTGenerateRequest) -> SWOTGenerateResponse:
+def generate_swot(
+    body: SWOTGenerateRequest,
+    current_user: User = Depends(require_user),
+) -> SWOTGenerateResponse:
     data = generate(
         competitor_names=body.competitors,
         domain=body.domain,
