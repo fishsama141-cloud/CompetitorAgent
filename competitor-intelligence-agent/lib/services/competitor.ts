@@ -19,3 +19,10 @@ export async function createCompetitor(
   )
   return data
 }
+
+export async function deleteCompetitor(
+  competitorId: string,
+): Promise<{ competitor_id: string; name: string; deleted_tasks: number; deleted_docs: number }> {
+  const { data } = await apiClient.delete(`/competitors/${competitorId}`)
+  return data
+}

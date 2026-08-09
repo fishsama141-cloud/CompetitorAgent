@@ -114,6 +114,21 @@ def ingest(
     return len(chunks)
 
 
+# ── Delete ───────────────────────────────────────────────────
+
+def delete_by_competitor(competitor_id: str) -> int:
+    """Remove all ChromaDB documents belonging to a competitor. Returns deleted count."""
+    collection = _get_chroma()
+    try:
+        existing = collection.get(where={"competitor_id": competitor_id})
+        ids = existing.get("ids", [])
+        if ids:
+            collection.delete(ids=ids)
+        return len(ids)
+    except Exception:
+        return 0
+
+
 # ── Search ───────────────────────────────────────────────────
 
 def search(

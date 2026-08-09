@@ -16,12 +16,13 @@ from sqlalchemy.orm import Session
 
 from backend.auth import require_user
 from backend.database import Base, engine, get_db
-from backend.models import Competitor, User
+from backend.models import Competitor, CrawlTask, User
 from backend.routers.auth import router as auth_router
 from backend.routers.evaluation import router as evaluation_router
 from backend.routers.ingestion import router as ingestion_router
 from backend.routers.knowledge import router as knowledge_router
 from backend.routers.swot import router as swot_router
+from backend.services.vector_store import delete_by_competitor
 from backend.schemas import (
     CompetitorCreateData,
     CompetitorCreateRequest,
@@ -140,3 +141,58 @@ def list_competitors(
             for c in comps
         ]
     )
+
+
+@app.delete(f"{API}/competitors/{{competitor_id}}")
+def delete_competitor(
+    competitor_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_user),
+) -> dict:
+    """Delete a competitor and all associated data (crawl tasks + vector docs)."""
+    comp = (
+        db.query(Competitor)
+        .filter(
+            Competitor.competitor_id == competitor_id,
+            Competitor.user_id == current_user.id,
+        )
+        .first()
+    )
+
+    if comp is None:
+        return {
+            "status": "error",
+            "error_message": f"竞品 {competitor_id} 不存在或无权操作",
+        }
+
+    comp_name = comp.name
+
+    # 1. Delete associated crawl tasks
+    deleted_tasks = (
+        db.query(CrawlTask)
+        .filter(
+            CrawlTask.competitor_id == competitor_id,
+            CrawlTask.user_id == current_user.id,
+        )
+        .delete()
+    )
+
+    # 2. Delete competitor record
+    db.delete(comp)
+    db.commit()
+
+    # 3. Delete vector documents (fire-and-forget — won't block API response)
+    try:
+        deleted_docs = delete_by_competitor(competitor_id)
+    except Exception:
+        deleted_docs = 0
+
+    return {
+        "status": "success",
+        "data": {
+            "competitor_id": competitor_id,
+            "name": comp_name,
+            "deleted_tasks": deleted_tasks,
+            "deleted_docs": deleted_docs,
+        },
+    }

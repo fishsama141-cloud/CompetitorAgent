@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   CheckCircle2, Download, FileStack, FileText, Globe,
-  Loader2, Play, RefreshCw, XCircle, Plus,
+  Loader2, Play, RefreshCw, XCircle, Plus, Trash2,
   ChevronRight, History, Settings2, Activity,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils'
 import { sourceTypes } from '@/lib/mock-data'
 import type { TaskStatusWithMeta as TaskStatus } from '@/lib/types'
 import { startCrawl as startCrawlApi, getTaskStatus, listCrawlTasks, exportTaskDocx } from '@/lib/services/ingestion'
-import { listCompetitors, createCompetitor } from '@/lib/services/competitor'
+import { listCompetitors, createCompetitor, deleteCompetitor } from '@/lib/services/competitor'
 import type { Competitor, CrawlResponse } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -54,6 +54,8 @@ export function IngestionView({ domain, onNavigate }: { domain: string; onNaviga
   const [tasks, setTasks] = useState<TaskStatus[]>([])
   const [crawling, setCrawling] = useState(false)
   const [progress, setProgress] = useState(0)
+  const [deleteTarget, setDeleteTarget] = useState<Competitor | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const heroRef = useReveal()
 
   // ── Fetch real competitors from the backend ────────────────
@@ -185,6 +187,25 @@ export function IngestionView({ domain, onNavigate }: { domain: string; onNaviga
     }
   }
 
+  async function handleDelete() {
+    if (!deleteTarget || deleting) return
+    setDeleting(true)
+    try {
+      const result = await deleteCompetitor(deleteTarget.competitor_id)
+      toast.success(`已删除「${result.name}」`, {
+        description: `清理了 ${result.deleted_tasks} 条采集记录、${result.deleted_docs} 条向量文档`,
+      })
+      if (selectedId === deleteTarget.competitor_id) setSelectedId(null)
+      setDeleteTarget(null)
+      await refreshCompetitors()
+      await loadHistory()
+    } catch (err: any) {
+      toast.error('删除失败', { description: err?.message ?? '请稍后重试' })
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   return (
     <div className="flex flex-col">
       {/* ================================================================
@@ -247,6 +268,7 @@ export function IngestionView({ domain, onNavigate }: { domain: string; onNaviga
               isSelected={selectedId === c.competitor_id}
               onSelect={() => setSelectedId(selectedId === c.competitor_id ? null : c.competitor_id)}
               onCrawl={(e) => { e.stopPropagation(); handleCrawl(c.competitor_id) }}
+              onDelete={(e) => { e.stopPropagation(); setDeleteTarget(c) }}
               crawling={crawling}
             />
           ))}
@@ -281,6 +303,7 @@ export function IngestionView({ domain, onNavigate }: { domain: string; onNaviga
                 tasks={selectedTasks}
                 onClose={() => setSelectedId(null)}
                 onCrawl={() => handleCrawl(selected.competitor_id!)}
+                onDelete={() => setDeleteTarget(selected)}
                 crawling={crawling}
                 progress={progress}
                 onNavigate={onNavigate}
@@ -334,6 +357,53 @@ export function IngestionView({ domain, onNavigate }: { domain: string; onNaviga
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ================================================================
+          DELETE CONFIRMATION DIALOG
+          ================================================================ */}
+      <Dialog open={deleteTarget !== null} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <Trash2 className="size-5" />
+              确认删除
+            </DialogTitle>
+            <DialogDescription>
+              此操作不可撤销。将同时清理该竞品的全部采集记录与向量文档。
+            </DialogDescription>
+          </DialogHeader>
+          {deleteTarget && (
+            <div className="flex flex-col gap-3 rounded-xl border border-red-100 bg-red-50/50 p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex size-10 items-center justify-center rounded-xl bg-red-100 text-base font-bold text-red-600">
+                  {deleteTarget.name.slice(0, 1)}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold">{deleteTarget.name}</p>
+                  <p className="font-mono text-[11px] text-muted-foreground">{deleteTarget.competitor_id}</p>
+                </div>
+              </div>
+              <p className="text-[12px] text-muted-foreground">
+                {deleteTarget.document_count} 个已入库文档片段将被永久删除。
+              </p>
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} disabled={deleting}>
+              取消
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleting}
+              className="gap-2"
+            >
+              {deleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
+              {deleting ? '删除中…' : '确认删除'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -347,6 +417,7 @@ function CompetitorCard({
   isSelected,
   onSelect,
   onCrawl,
+  onDelete,
   crawling,
 }: {
   competitor: Competitor
@@ -354,6 +425,7 @@ function CompetitorCard({
   isSelected: boolean
   onSelect: () => void
   onCrawl: (e: React.MouseEvent) => void
+  onDelete: (e: React.MouseEvent) => void
   crawling: boolean
 }) {
   const [hovered, setHovered] = useState(false)
@@ -443,6 +515,15 @@ function CompetitorCard({
                 <History className="size-3" />
                 查看日志
               </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 rounded-full text-[12px] text-red-400 hover:bg-red-50 hover:text-red-600"
+                onClick={onDelete}
+              >
+                <Trash2 className="size-3" />
+                删除
+              </Button>
             </motion.div>
           )}
         </AnimatePresence>
@@ -459,6 +540,7 @@ function SheetContent({
   tasks,
   onClose,
   onCrawl,
+  onDelete,
   crawling,
   progress,
   onNavigate,
@@ -467,6 +549,7 @@ function SheetContent({
   tasks: TaskStatus[]
   onClose: () => void
   onCrawl: () => void
+  onDelete: () => void
   crawling: boolean
   progress: number
   onNavigate: (tab: 'ingestion' | 'knowledge' | 'swot' | 'evaluation') => void
@@ -504,6 +587,14 @@ function SheetContent({
         </div>
         <Button variant="ghost" size="icon-sm" className="text-muted-foreground" onClick={onClose}>
           <XCircle className="size-5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="text-red-400 hover:bg-red-50 hover:text-red-600"
+          onClick={onDelete}
+        >
+          <Trash2 className="size-4" />
         </Button>
       </div>
 
