@@ -1,5 +1,10 @@
 import apiClient from '@/lib/api-client'
-import type { EvaluationRequest, Evaluations } from '@/lib/types'
+import type { EvaluationRequest, Evaluations, EvalReportListItem } from '@/lib/types'
+
+export async function listEvalReports(): Promise<EvalReportListItem[]> {
+  const { data } = await apiClient.get<EvalReportListItem[]>('/evaluation/reports')
+  return data
+}
 
 export async function runEvaluation(
   payload: EvaluationRequest,

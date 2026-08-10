@@ -8,8 +8,8 @@ import {
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
-import type { Evaluations, Competitor, EvaluationRun } from '@/lib/types'
-import { runEvaluation as runEvaluationApi } from '@/lib/services/evaluation'
+import type { Evaluations, Competitor, EvaluationRun, EvalReportListItem } from '@/lib/types'
+import { runEvaluation as runEvaluationApi, listEvalReports } from '@/lib/services/evaluation'
 import { listCompetitors } from '@/lib/services/competitor'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -44,7 +44,9 @@ const TONE_MAP: Record<string, { text: string; ring: string; bg: string; stroke:
 
 export function EvaluationView() {
   const [competitors, setCompetitors] = useState<Competitor[]>([])
-  const [reportId, setReportId] = useState('')
+  const [reports, setReports] = useState<EvalReportListItem[]>([])
+  const [selectedReportId, setSelectedReportId] = useState<string>('')  // '' = auto-pick latest
+  const [reportsLoading, setReportsLoading] = useState(true)
   const [running, setRunning] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
   // Start with null — no mock data
@@ -56,16 +58,20 @@ export function EvaluationView() {
 
   useEffect(() => {
     listCompetitors().then(setCompetitors).catch(() => setCompetitors([]))
+    listEvalReports()
+      .then((r) => setReports(r))
+      .catch(() => setReports([]))
+      .finally(() => setReportsLoading(false))
   }, [])
 
   async function run() {
-    if (!reportId) return
     setRunning(true)
     try {
-      const result = await runEvaluationApi({ report_id: reportId })
+      const payload = selectedReportId ? { report_id: selectedReportId } : {}
+      const result = await runEvaluationApi(payload)
       setScores(result)
       setHistory((prev) => [{
-        report_id: reportId,
+        report_id: selectedReportId || result.formulas?.report_id || 'auto-latest',
         scores: result,
         evaluated_at: new Date().toISOString().replace('T', ' ').slice(0, 19),
       }, ...prev])
@@ -100,19 +106,49 @@ export function EvaluationView() {
         </p>
         <div className="flex items-center gap-3">
           <div className="flex flex-1 items-center gap-3 max-w-md">
-            <input
-              type="text"
-              value={reportId}
-              onChange={(e) => setReportId(e.target.value)}
-              placeholder="输入 SWOT 报告 ID（如 rpt_xxx）"
-              className="h-12 flex-1 rounded-2xl border border-border/60 bg-muted/30 px-4 text-[13px] font-mono text-foreground placeholder:text-muted-foreground/50 outline-none transition-[border-color,box-shadow] focus:border-primary/40 focus:ring-4 focus:ring-primary/5"
-            />
+            <Select value={selectedReportId} onValueChange={(v) => setSelectedReportId(v ?? '')}>
+              <SelectTrigger className="h-12 flex-1 rounded-2xl border border-border/60 bg-muted/30 px-4 text-[13px] font-mono">
+                {reportsLoading ? (
+                  <span className="text-muted-foreground/50 flex items-center gap-2">
+                    <Loader2 className="size-3.5 animate-spin" />
+                    加载报告列表…
+                  </span>
+                ) : (
+                  <SelectValue placeholder={reports.length === 0 ? '暂无 SWOT 报告，请先生成' : '选择报告（留空 = 自动取最新）'} />
+                )}
+              </SelectTrigger>
+              <SelectContent className="max-h-72 rounded-2xl">
+                <SelectGroup>
+                  {/* Default: auto-pick latest */}
+                  <SelectItem value="" className="font-mono text-[13px]">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-medium">⭐ 自动选择最新报告</span>
+                      <span className="text-[11px] text-muted-foreground">不指定报告，评估最近生成的一份</span>
+                    </div>
+                  </SelectItem>
+                  <div className="my-1 border-t border-border/40" />
+                  {reports.map((r) => (
+                    <SelectItem key={r.report_id} value={r.report_id} className="font-mono text-[13px]">
+                      <div className="flex flex-col gap-0.5">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium truncate max-w-[200px]">{r.report_id}</span>
+                          <Badge variant="secondary" className="shrink-0 text-[10px] px-1 py-0">{r.total_points} 条</Badge>
+                        </div>
+                        <span className="text-[11px] text-muted-foreground">
+                          {r.competitor_names} · {r.domain} · {r.created_at?.slice(0, 10)}
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
           </div>
           <Button
             size="lg"
             className="btn-press rounded-full px-8 text-[15px]"
             onClick={run}
-            disabled={running}
+            disabled={running || reportsLoading}
           >
             {running ? <Loader2 className="size-4 animate-spin" /> : <FlaskConical className="size-4" />}
             {running ? '评估中…' : '运行评估'}
@@ -145,7 +181,7 @@ export function EvaluationView() {
             <FlaskConical className="size-10 text-muted-foreground/25" />
             <p className="text-[14px] text-muted-foreground">尚未运行评估</p>
             <p className="text-[12px] text-muted-foreground/60 max-w-md">
-              输入 SWOT 报告 ID，点击"运行评估"按钮。系统将运行确定性公式（语义相似度验证 + chunk_id 存在性检查）与 LLM 裁判双重评估。
+             选择一份 SWOT 报告（或留空自动选最新），点击"运行评估"即可。
             </p>
           </div>
         ) : (
@@ -222,7 +258,7 @@ export function EvaluationView() {
               <div className="flex-1 overflow-y-auto px-6 py-5">
                 <div className="flex flex-col gap-3">
                   {history.map((h, i) => (
-                    <HistoryRow key={h.report_id} item={{ ...h, status: 'passed' as const }} index={i} isActive={h.report_id === reportId} />
+                    <HistoryRow key={h.report_id} item={{ ...h, status: 'passed' as const }} index={i} isActive={h.report_id === selectedReportId} />
                   ))}
                 </div>
               </div>

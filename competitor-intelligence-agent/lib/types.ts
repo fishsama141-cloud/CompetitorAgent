@@ -175,7 +175,7 @@ export type SwotReportDetail = {
 // --- Evaluation ---
 
 export type EvaluationRequest = {
-  report_id: string
+  report_id?: string // 可选，不传则自动取最新一份 SWOT 报告
 }
 
 export type Evaluations = {
@@ -184,6 +184,16 @@ export type Evaluations = {
   completeness: number
   hallucination_rate: number
   formulas?: Record<string, string>
+}
+
+// Eval report list item
+export type EvalReportListItem = {
+  report_id: string
+  competitor_names: string
+  domain: string
+  time_range_days: number
+  total_points: number
+  created_at: string
 }
 
 // Extended for UI display (history table)
