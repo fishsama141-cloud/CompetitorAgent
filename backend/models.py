@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Integer, String, func
+from sqlalchemy import DateTime, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.database import Base
@@ -61,6 +61,25 @@ class CrawlTask(Base):
     documents_created: Mapped[int] = mapped_column(Integer, default=0)
     error_message: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     content_preview: Mapped[str | None] = mapped_column(String(3000), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        server_default=func.now(),
+    )
+
+
+class SwotReport(Base):
+    """Persisted SWOT analysis report — survives restarts and refresh."""
+    __tablename__ = "swot_reports"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    report_id: Mapped[str] = mapped_column(String(32), unique=True, nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True, default=0)
+    competitor_names: Mapped[str] = mapped_column(String(1024), nullable=False, default="")
+    domain: Mapped[str] = mapped_column(String(256), nullable=False, default="")
+    time_range_days: Mapped[int] = mapped_column(Integer, default=30)
+    swot_matrix: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+    recommendations: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),

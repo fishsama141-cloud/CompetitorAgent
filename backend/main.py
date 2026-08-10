@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from backend.auth import require_user
 from backend.database import Base, engine, get_db
-from backend.models import Competitor, CrawlTask, User
+from backend.models import Competitor, CrawlTask, SwotReport, User
 from backend.routers.auth import router as auth_router
 from backend.routers.evaluation import router as evaluation_router
 from backend.routers.ingestion import router as ingestion_router

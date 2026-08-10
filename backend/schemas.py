@@ -174,6 +174,27 @@ class SWOTGenerateData(BaseModel):
     recommendations: List[str] = []
 
 
+class SwotReportListItem(BaseModel):
+    """Summary row for the report history list."""
+    report_id: str
+    competitor_names: str  # comma-separated
+    domain: str
+    time_range_days: int
+    total_points: int  # sum of all quadrant item counts
+    created_at: str
+
+
+class SwotReportDetail(BaseModel):
+    """Full report with matrix + recommendations."""
+    report_id: str
+    competitor_names: str
+    domain: str
+    time_range_days: int
+    swot_matrix: SWOTMatrix
+    recommendations: List[str] = []
+    created_at: str
+
+
 # ============================================================
 # Evaluation
 # ============================================================
@@ -238,6 +259,8 @@ UploadDocumentResponse = ApiResponse[UploadDocumentData]
 SearchResponse = ApiResponse[SearchResponseData]
 ChatResponse = ApiResponse[ChatResponseData]
 SWOTGenerateResponse = ApiResponse[SWOTGenerateData]
+SwotReportListResponse = ApiResponse[List[SwotReportListItem]]
+SwotReportDetailResponse = ApiResponse[SwotReportDetail]
 EvaluationResponse = ApiResponse[EvaluationData]
 TokenResponse = ApiResponse[TokenData]
 UserMeResponse = ApiResponse[UserMeData]

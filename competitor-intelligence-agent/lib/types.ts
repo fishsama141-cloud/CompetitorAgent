@@ -151,6 +151,27 @@ export type SwotGenerateResponse = {
   recommendations: string[]
 }
 
+// --- SWOT Report History ---
+
+export type SwotReportListItem = {
+  report_id: string
+  competitor_names: string
+  domain: string
+  time_range_days: number
+  total_points: number
+  created_at: string
+}
+
+export type SwotReportDetail = {
+  report_id: string
+  competitor_names: string
+  domain: string
+  time_range_days: number
+  swot_matrix: SwotMatrix
+  recommendations: string[]
+  created_at: string
+}
+
 // --- Evaluation ---
 
 export type EvaluationRequest = {

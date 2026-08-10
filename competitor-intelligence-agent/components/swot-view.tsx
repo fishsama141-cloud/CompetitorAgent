@@ -2,15 +2,15 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import {
-  AlertTriangle, Check, ChevronDown, ChevronUp, Copy,
-  Lightbulb, Settings2, Shield, Sparkles, Swords, TrendingUp, Zap,
-  XCircle, Loader2, Info,
+  AlertTriangle, Check, ChevronDown, ChevronUp, Clock, Copy,
+  FileText, Lightbulb, Settings2, Shield, Sparkles, Swords,
+  Trash2, TrendingUp, Zap, XCircle, Loader2, Info,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { motion, AnimatePresence } from 'framer-motion'
 import { cn } from '@/lib/utils'
-import type { Competitor, SwotItem, SwotMatrix } from '@/lib/types'
-import { generateSwot as generateSwotApi } from '@/lib/services/swot'
+import type { Competitor, SwotItem, SwotMatrix, SwotReportListItem } from '@/lib/types'
+import { generateSwot as generateSwotApi, listSwotReports, getSwotReport, deleteSwotReport } from '@/lib/services/swot'
 import { listCompetitors } from '@/lib/services/competitor'
 import type { SwotGenerateResponse } from '@/lib/types'
 import { CitationTag } from '@/components/citation-tag'
@@ -45,6 +45,12 @@ export function SwotView({ domain }: { domain: string }) {
   const [swotData, setSwotData] = useState<SwotMatrix | null>(null)
   const [recommendations, setRecommendations] = useState<string[]>([])
   const [showRecs, setShowRecs] = useState(true)
+  const [currentReportId, setCurrentReportId] = useState<string | null>(null)
+
+  // Saved reports history
+  const [savedReports, setSavedReports] = useState<SwotReportListItem[]>([])
+  const [loadingReport, setLoadingReport] = useState<string | null>(null)
+  const [showHistory, setShowHistory] = useState(false)
 
   // Config sheet
   const [configOpen, setConfigOpen] = useState(false)
@@ -53,10 +59,18 @@ export function SwotView({ domain }: { domain: string }) {
   const matrixRef = useReveal()
   const recsRef = useReveal()
 
-  // ── Load competitors from API ──────────────────────────────
+  // ── Load competitors + saved reports from API ──────────────
   useEffect(() => {
     listCompetitors().then(setCompetitors).catch(() => setCompetitors([]))
+    loadSavedReports()
   }, [])
+
+  async function loadSavedReports() {
+    try {
+      const reports = await listSwotReports()
+      setSavedReports(reports)
+    } catch { /* ignore — user may not be logged in yet */ }
+  }
 
   const label = targets.length === 0
     ? '未选择目标'
@@ -69,9 +83,41 @@ export function SwotView({ domain }: { domain: string }) {
       const names = targets.map((id) => competitors.find((c) => c.competitor_id === id)?.name).filter(Boolean) as string[]
       const result: SwotGenerateResponse = await generateSwotApi({ competitors: names, domain, time_range_days: days })
       setSwotData(result.swot_matrix); setRecommendations(result.recommendations)
-      toast.success('SWOT 报告已生成')
+      setCurrentReportId(result.report_id)
+      toast.success('SWOT 报告已生成并自动保存')
+      await loadSavedReports() // Refresh history list
     } catch (err: any) { toast.error('SWOT 生成失败', { description: err?.message ?? '请确认向量库中有数据且 LLM API Key 已配置' }) }
     finally { setGenerating(false) }
+  }
+
+  async function handleLoadReport(reportId: string) {
+    setLoadingReport(reportId)
+    try {
+      const report = await getSwotReport(reportId)
+      setSwotData(report.swot_matrix)
+      setRecommendations(report.recommendations)
+      setCurrentReportId(reportId)
+      setShowHistory(false)
+      toast.success('报告已加载')
+    } catch (err: any) {
+      toast.error('加载失败', { description: err?.message ?? '无法加载该报告' })
+    } finally { setLoadingReport(null) }
+  }
+
+  async function handleDeleteReport(reportId: string) {
+    try {
+      await deleteSwotReport(reportId)
+      toast.success('报告已删除')
+      // If currently viewing this report, clear it
+      if (currentReportId === reportId) {
+        setSwotData(null)
+        setRecommendations([])
+        setCurrentReportId(null)
+      }
+      await loadSavedReports()
+    } catch (err: any) {
+      toast.error('删除失败', { description: err?.message ?? '无法删除该报告' })
+    }
   }
 
   function copyAll() {
@@ -129,6 +175,78 @@ export function SwotView({ domain }: { domain: string }) {
           <span>近 {days} 天</span>
         </div>
       </motion.section>
+
+      {/* ================================================================
+          SAVED REPORTS — history list
+          ================================================================ */}
+      {savedReports.length > 0 && (
+        <section className="pb-4">
+          <div
+            className="flex cursor-pointer items-center gap-3 text-muted-foreground hover:text-foreground transition-colors"
+            onClick={() => setShowHistory(!showHistory)}
+          >
+            <Clock className="size-4" />
+            <span className="font-mono text-[11px] font-medium tracking-[0.15em] uppercase">
+              已保存的报告 · {savedReports.length} 份
+            </span>
+            {showHistory ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+          </div>
+          <AnimatePresence>
+            {showHistory && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.25 }}
+                className="overflow-hidden"
+              >
+                <div className="mt-3 flex flex-col gap-2">
+                  {savedReports.map((r) => (
+                    <div
+                      key={r.report_id}
+                      className={cn(
+                        'flex items-center gap-4 rounded-xl border border-border/50 bg-white px-4 py-3 transition-all hover:ring-1 hover:ring-black/10',
+                        currentReportId === r.report_id && 'ring-2 ring-primary/20 bg-primary/5',
+                      )}
+                    >
+                      <FileText className="size-4 shrink-0 text-muted-foreground" />
+                      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <span className="text-[13px] font-medium truncate">
+                          {r.competitor_names} · {r.domain}
+                        </span>
+                        <span className="font-mono text-[11px] text-muted-foreground">
+                          {r.total_points} 分析点 · 近 {r.time_range_days} 天 · {r.created_at?.slice(0, 10) ?? ''}
+                        </span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="btn-press rounded-lg text-[12px]"
+                        onClick={() => handleLoadReport(r.report_id)}
+                        disabled={loadingReport === r.report_id}
+                      >
+                        {loadingReport === r.report_id ? (
+                          <Loader2 className="size-3.5 animate-spin" />
+                        ) : (
+                          '加载'
+                        )}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="text-muted-foreground/50 hover:text-red-500"
+                        onClick={() => handleDeleteReport(r.report_id)}
+                      >
+                        <Trash2 className="size-3.5" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </section>
+      )}
 
       {/* ================================================================
           MATRIX — 2x2 clean card grid
