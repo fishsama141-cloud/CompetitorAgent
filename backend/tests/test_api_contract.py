@@ -159,12 +159,13 @@ class TestSWOT:
     """Group 5: SWOT agent."""
 
     def test_08_generate_swot(self, client: TestClient):
+        headers = _register_and_login(client)
         payload = {
             "competitors": ["DeepSeek", "豆包"],
             "domain": "AI Assistant",
             "time_range_days": 30,
         }
-        resp = client.post(f"{API}/swot/generate", json=payload)
+        resp = client.post(f"{API}/swot/generate", json=payload, headers=headers)
         assert resp.status_code == 200
         parsed = SWOTGenerateResponse.model_validate(resp.json())
         assert parsed.status == "success"
@@ -175,14 +176,18 @@ class TestSWOT:
         assert isinstance(m.opportunities, list)
         assert isinstance(m.threats, list)
         assert parsed.data.recommendations
+        # Auto-evaluation should be present
+        assert parsed.data.evaluation is not None
+        assert 0.0 <= parsed.data.evaluation.faithfulness <= 1.0
 
     def test_09_swot_items_have_citations(self, client: TestClient):
+        headers = _register_and_login(client)
         payload = {
             "competitors": ["DeepSeek"],
             "domain": "AI Assistant",
             "time_range_days": 30,
         }
-        resp = client.post(f"{API}/swot/generate", json=payload)
+        resp = client.post(f"{API}/swot/generate", json=payload, headers=headers)
         assert resp.status_code == 200
         parsed = SWOTGenerateResponse.model_validate(resp.json())
         m = parsed.data.swot_matrix
@@ -197,13 +202,37 @@ class TestSWOT:
 class TestEvaluation:
     """Group 6: Quality evaluation."""
 
-    def test_10_run_evaluation(self, client: TestClient):
-        # First generate SWOT so evaluation has data
+    def test_10_list_eval_reports(self, client: TestClient):
+        """GET /evaluation/reports — list available SWOT reports for evaluation."""
+        headers = _register_and_login(client)
+        # Generate a SWOT report first so the list isn't empty
         client.post(
             f"{API}/swot/generate",
             json={"competitors": ["DeepSeek"], "domain": "AI", "time_range_days": 30},
+            headers=headers,
         )
-        resp = client.post(f"{API}/evaluation/run", json={"report_id": "rpt_test_01"})
+        resp = client.get(f"{API}/evaluation/reports", headers=headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "success"
+        assert isinstance(data["data"], list)
+        assert len(data["data"]) >= 1
+        item = data["data"][0]
+        assert "report_id" in item
+        assert "competitor_names" in item
+        assert "domain" in item
+
+    def test_11_run_evaluation_without_report_id(self, client: TestClient):
+        """POST /evaluation/run — auto-picks latest report when report_id is omitted."""
+        headers = _register_and_login(client)
+        # Generate a SWOT report first
+        client.post(
+            f"{API}/swot/generate",
+            json={"competitors": ["DeepSeek"], "domain": "AI", "time_range_days": 30},
+            headers=headers,
+        )
+        # Omit report_id — should auto-evaluate the latest
+        resp = client.post(f"{API}/evaluation/run", json={}, headers=headers)
         assert resp.status_code == 200
         parsed = EvaluationResponse.model_validate(resp.json())
         assert parsed.status == "success"
@@ -213,8 +242,18 @@ class TestEvaluation:
         assert 0.0 <= parsed.data.completeness <= 1.0
         assert 0.0 <= parsed.data.hallucination_rate <= 1.0
 
-    def test_11_get_evaluation_by_id(self, client: TestClient):
-        resp = client.get(f"{API}/evaluation/rpt_001")
+    def test_12_get_evaluation_by_id(self, client: TestClient):
+        """GET /evaluation/{report_id} — retrieve evaluation for a specific report."""
+        headers = _register_and_login(client)
+        # Generate SWOT first (which also auto-evaluates)
+        gen_resp = client.post(
+            f"{API}/swot/generate",
+            json={"competitors": ["DeepSeek"], "domain": "AI", "time_range_days": 30},
+            headers=headers,
+        )
+        report_id = gen_resp.json()["data"]["report_id"]
+
+        resp = client.get(f"{API}/evaluation/{report_id}", headers=headers)
         assert resp.status_code == 200
         parsed = EvaluationResponse.model_validate(resp.json())
         assert parsed.status == "success"
@@ -234,9 +273,13 @@ class TestContractValidation:
         ("POST", "/knowledge/search", {"query": "test", "top_k": 3, "competitor_id": "cmp_001", "domain": "AI"}),
         ("POST", "/chat", {"question": "test?", "competitor_id": "cmp_001"}),
         ("POST", "/swot/generate", {"competitors": ["DeepSeek"], "domain": "AI", "time_range_days": 30}),
-        ("POST", "/evaluation/run", {"report_id": "rpt_001"}),
-        ("GET", "/evaluation/rpt_001", None),
+        ("GET", "/swot/reports", None),
+        ("POST", "/evaluation/run", {}),
+        ("GET", "/evaluation/reports", None),
     ]
+
+    # Paths that need auth — all except /health
+    AUTH_REQUIRED_PREFIXES = ("/competitors", "/data/", "/knowledge/", "/chat", "/swot/", "/evaluation/")
 
     def test_12_all_endpoints_contract_compliant(self, client: TestClient):
         """Every endpoint returns {status, data, error_message} envelope."""
@@ -245,7 +288,7 @@ class TestContractValidation:
             url = f"{API}{path}"
             kwargs: dict = {}
             # Endpoints that require auth
-            if path in ("/competitors", "/data/crawl", "/data/tasks") or path.startswith("/data/task/"):
+            if any(path.startswith(p) for p in self.AUTH_REQUIRED_PREFIXES):
                 kwargs["headers"] = headers
             if method == "GET":
                 resp = client.get(url, **kwargs)

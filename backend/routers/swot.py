@@ -101,6 +101,15 @@ def generate_swot(
     # Also store in memory for evaluation router backward compat
     eval_store[data.report_id] = {"swot": data.swot_matrix}
 
+    # Auto-run evaluation after generation
+    try:
+        from backend.services.evaluator import evaluate
+        eval_result = evaluate(data.swot_matrix)
+        data.evaluation = eval_result
+        eval_store[data.report_id]["evaluation"] = eval_result
+    except Exception:
+        pass  # 评估失败不影响 SWOT 生成结果返回
+
     return SWOTGenerateResponse(data=data)
 
 

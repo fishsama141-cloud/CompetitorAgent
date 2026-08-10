@@ -172,6 +172,7 @@ class SWOTGenerateData(BaseModel):
     task_id: str
     swot_matrix: SWOTMatrix
     recommendations: List[str] = []
+    evaluation: Optional["EvaluationData"] = None  # 生成后自动评估结果
 
 
 class SwotReportListItem(BaseModel):
@@ -201,7 +202,7 @@ class SwotReportDetail(BaseModel):
 
 
 class EvaluationRequest(BaseModel):
-    report_id: str
+    report_id: str | None = None  # 可选，不传则自动取最新一份 SWOT 报告
 
 
 class EvaluationData(BaseModel):
@@ -217,6 +218,16 @@ class EvaluationData(BaseModel):
         "hallucination_rate": "count(similarity < 0.5) / total_points — 分析点与原文相似度低于0.5阈值的比例",
         "scoring": "最终得分 = (确定性公式得分 + LLM裁判得分) / 2，两者取平均；若某一方不可用则使用另一方的值",
     }
+
+
+class EvalReportListItem(BaseModel):
+    """Summary row for the evaluation report picker."""
+    report_id: str
+    competitor_names: str
+    domain: str
+    time_range_days: int
+    total_points: int
+    created_at: str
 
 
 # ============================================================
@@ -262,5 +273,6 @@ SWOTGenerateResponse = ApiResponse[SWOTGenerateData]
 SwotReportListResponse = ApiResponse[List[SwotReportListItem]]
 SwotReportDetailResponse = ApiResponse[SwotReportDetail]
 EvaluationResponse = ApiResponse[EvaluationData]
+EvalReportListResponse = ApiResponse[List[EvalReportListItem]]
 TokenResponse = ApiResponse[TokenData]
 UserMeResponse = ApiResponse[UserMeData]
