@@ -626,7 +626,7 @@ function ResultCard({
 function ChatText({ message }: { message: ChatMessage }) {
   const parts = message.content.split(/(\[chunk_\d+\])/g)
   return (
-    <p className="text-[13px] leading-relaxed">
+    <div className="text-[13px] leading-relaxed whitespace-pre-line">
       {parts.map((part, i) => {
         const match = part.match(/^\[(chunk_\d+)\]$/)
         if (!match) return <span key={i}>{part}</span>
@@ -634,6 +634,6 @@ function ChatText({ message }: { message: ChatMessage }) {
         if (!citation) return <span key={i}>{part}</span>
         return <CitationTag key={i} citation={citation} superscript />
       })}
-    </p>
+    </div>
   )
 }
